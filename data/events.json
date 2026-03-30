@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Live Music at The Rustic",
+    "time": "9:00 PM",
+    "type": "music"
+  },
+  {
+    "name": "Rooftop Drinks at Waterproof",
+    "time": "8:45 PM",
+    "type": "networking"
+  },
+  {
+    "name": "Comedy Set at Hyena's",
+    "time": "9:30 PM",
+    "type": "comedy"
+  }
+]

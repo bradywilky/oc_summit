@@ -1,0 +1,42 @@
+[
+  {
+    "name": "The Rustic",
+    "cuisine": "American",
+    "price_level": 2,
+    "estimated_cost": "$38",
+    "walk_minutes": 12,
+    "good_for_groups": true
+  },
+  {
+    "name": "Pecan Lodge",
+    "cuisine": "BBQ",
+    "price_level": 2,
+    "estimated_cost": "$32",
+    "walk_minutes": 14,
+    "good_for_groups": true
+  },
+  {
+    "name": "Tei-An",
+    "cuisine": "Japanese",
+    "price_level": 3,
+    "estimated_cost": "$58",
+    "walk_minutes": 18,
+    "good_for_groups": false
+  },
+  {
+    "name": "Meso Maya",
+    "cuisine": "Mexican",
+    "price_level": 2,
+    "estimated_cost": "$29",
+    "walk_minutes": 10,
+    "good_for_groups": true
+  },
+  {
+    "name": "Monarch",
+    "cuisine": "Italian",
+    "price_level": 4,
+    "estimated_cost": "$95",
+    "walk_minutes": 9,
+    "good_for_groups": false
+  }
+]

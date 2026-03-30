@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Sarah Kim",
+    "organization": "BCBS Illinois",
+    "role": "Director of Digital Strategy",
+    "interests": ["AI governance", "claims automation", "member experience"]
+  },
+  {
+    "name": "Michael Torres",
+    "organization": "BCBSA",
+    "role": "Innovation Program Lead",
+    "interests": ["agent design", "operating models", "AI adoption"]
+  },
+  {
+    "name": "Priya Shah",
+    "organization": "BCBS Texas",
+    "role": "Senior Product Manager",
+    "interests": ["provider tools", "workflow automation", "RAG systems"]
+  },
+  {
+    "name": "David Lee",
+    "organization": "BCBS Michigan",
+    "role": "VP of Operations",
+    "interests": ["care navigation", "service models", "AI governance"]
+  }
+]
