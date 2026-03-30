@@ -1,0 +1,87 @@
+c37
+
+
+
+Short answer: **“Fvii c37” isn’t standard chord notation** — it’s either shorthand from a specific chart/system or just miswritten.
+
+Let’s break what each part *might* mean:
+
+---
+
+## 1. **“Fvii”**
+
+* In normal theory, **vii** (Roman numeral) means the **7th scale degree chord**.
+* In the key of F major:
+
+  * The vii chord = **E diminished (E°)**
+
+So:
+
+* **Fvii = the vii chord in the key of F → E diminished**
+
+---
+
+## 2. **“c37”**
+
+This is where things get messy — it’s **not standard at all**.
+
+Most likely interpretations:
+
+### Possibility A (most realistic)
+
+* It’s trying to say something like:
+
+  * **“7” → add a 7th (seventh chord)**
+  * “c3” could be a typo or shorthand for **“♭3” or “sus/altered 3rd”**
+
+### Possibility B (chart shorthand / jazz shorthand)
+
+* Could be a custom notation meaning:
+
+  * **“3 and 7 are the important tones”** (very jazz mindset)
+* In dominant chords, the **3rd and 7th define the sound**
+
+---
+
+## 3. What it probably resolves to (musically)
+
+If we combine the most logical pieces:
+
+* **Fvii → E diminished**
+* Add a 7 → **E diminished 7 (E°7)**
+
+That gives:
+
+* Notes: **E – G – Bb – Db**
+
+Which fits typical harmony:
+
+* vii°7 chords are super common leading chords
+* They create tension that resolves to **F**
+
+---
+
+## 4. Sanity check (important)
+
+If you saw this in:
+
+* a **lead sheet / jazz chart** → probably shorthand / sloppy notation
+* a **tab or random PDF** → likely miswritten
+* a **specific system (Nashville / custom)** → could be local shorthand
+
+---
+
+## Bottom line
+
+* **“Fvii” → E diminished (in key of F)**
+* **“c37” → likely means “add 7 / emphasize 3rd & 7th” (non-standard)**
+* Most musically useful interpretation:
+  👉 **E diminished 7 (E°7)**
+
+---
+
+If you want, show me exactly where you saw it (screenshot or context).
+This kind of notation is *very context-dependent*, and I can pin it down precisely instead of guessing.
+
+
+

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Architecture Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #ffffff;
+      border-right: 1px solid #d9dee5;
+      padding: 20px;
+    }
+
+    .main {
+      padding: 20px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 20px;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #d9dee5;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .checkbox-group label {
+      display: block;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+
+    .diagram {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .node {
+      min-width: 120px;
+      text-align: center;
+      padding: 14px 10px;
+      border: 2px solid #b8c2cc;
+      border-radius: 10px;
+      background: #eef2f7;
+      opacity: 0.45;
+      transition: all 0.2s ease;
+    }
+
+    .node.active {
+      opacity: 1;
+      border-color: #2d6cdf;
+      background: #e8f0ff;
+      font-weight: bold;
+    }
+
+    .arrow {
+      font-size: 24px;
+      opacity: 0.35;
+    }
+
+    .arrow.active {
+      opacity: 1;
+    }
+
+    .chat-window {
+      border: 1px solid #d9dee5;
+      border-radius: 10px;
+      background: #fafbfc;
+      min-height: 220px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bubble {
+      max-width: 75%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.4;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #dbeafe;
+    }
+
+    .bot {
+      align-self: flex-start;
+      background: #e5e7eb;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      background: #2d6cdf;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #1f57ba;
+    }
+
+    .small-note {
+      font-size: 13px;
+      color: #555;
+      margin-top: 10px;
+    }
+
+    .explanation-box {
+      background: #fffbea;
+      border: 1px solid #f3e29d;
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <h2>Components</h2>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="llm" checked /> LLM</label>
+        <label><input type="checkbox" id="retriever" checked /> Retriever</label>
+        <label><input type="checkbox" id="kb" checked /> Knowledge Base</label>
+      </div>
+
+      <div class="small-note">
+        This demo ignores the typed question.  
+        The selected architecture determines the response.
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="card">
+        <h2>Architecture View</h2>
+        <div class="diagram">
+          <div class="node active" id="node-user">User</div>
+          <div class="arrow active" id="arrow-user-retriever">→</div>
+          <div class="node" id="node-retriever">Retriever</div>
+          <div class="arrow" id="arrow-retriever-kb">→</div>
+          <div class="node" id="node-kb">Knowledge Base</div>
+          <div class="arrow" id="arrow-kb-llm">→</div>
+          <div class="node" id="node-llm">LLM</div>
+          <div class="arrow" id="arrow-llm-answer">→</div>
+          <div class="node active" id="node-answer">Answer</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What This Configuration Demonstrates</h2>
+        <div id="proofText">
+          A full RAG pipeline can retrieve internal information and use the LLM to write a grounded response.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Chat Simulation</h2>
+        <div class="chat-window" id="chatWindow">
+          <div class="bubble bot">
+            Select components, type a question, and click Send.
+          </div>
+        </div>
+
+        <div class="input-row">
+          <input
+            type="text"
+            id="questionInput"
+            placeholder="Type any question here..."
+          />
+          <button id="sendBtn">Send</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const llmCheckbox = document.getElementById("llm");
+    const retrieverCheckbox = document.getElementById("retriever");
+    const kbCheckbox = document.getElementById("kb");
+    const chatWindow = document.getElementById("chatWindow");
+    const questionInput = document.getElementById("questionInput");
+    const proofText = document.getElementById("proofText");
+
+    function getKey() {
+      const llm = llmCheckbox.checked ? 1 : 0;
+      const retriever = retrieverCheckbox.checked ? 1 : 0;
+      const kb = kbCheckbox.checked ? 1 : 0;
+      return `${llm}${retriever}${kb}`;
+    }
+
+    const responses = {
+      "000": {
+        answer: "No meaningful answer can be produced because there is no LLM, no retriever, and no knowledge base.",
+        proof: "Without core components, there is no chatbot behavior at all."
+      },
+      "001": {
+        answer: "A knowledge base by itself just stores information. It does not answer questions on its own.",
+        proof: "Documents sitting in storage are not the same as a chatbot understanding or answering from them."
+      },
+      "010": {
+        answer: "A retriever without a knowledge base has nothing to search, and without an LLM it cannot explain results.",
+        proof: "Search logic alone is not enough. It needs content to search and usually an LLM to synthesize an answer."
+      },
+      "011": {
+        answer: "The system can locate relevant internal passages, but without an LLM it cannot turn them into a natural language answer.",
+        proof: "Retrieval and generation are different jobs."
+      },
+      "100": {
+        answer: "I can generate a fluent response based on general language ability, but I do not have access to your proprietary internal manual.",
+        proof: "The LLM is not automatically trained on your internal documents."
+      },
+      "101": {
+        answer: "Even if a knowledge base exists, the LLM still cannot use it unless something retrieves the relevant information and passes it in.",
+        proof: "An LLM does not magically read a private document store just because the store exists."
+      },
+      "110": {
+        answer: "The LLM and retriever are present, but without a knowledge base there is no proprietary source to ground the answer in.",
+        proof: "A retriever needs a source of truth to search."
+      },
+      "111": {
+        answer: "Using retrieved passages from the internal knowledge base, I can generate a grounded answer. This is a RAG system: the LLM writes the answer, but the retriever supplies the relevant proprietary content.",
+        proof: "This shows the core idea of RAG: the LLM is not trained on the internal manual; it uses retrieved content at question time."
+      }
+    };
+
+    function updateDiagram() {
+      const llm = llmCheckbox.checked;
+      const retriever = retrieverCheckbox.checked;
+      const kb = kbCheckbox.checked;
+
+      document.getElementById("node-llm").classList.toggle("active", llm);
+      document.getElementById("node-retriever").classList.toggle("active", retriever);
+      document.getElementById("node-kb").classList.toggle("active", kb);
+
+      // Simple logic for arrows
+      document.getElementById("arrow-user-retriever").classList.toggle("active", retriever);
+      document.getElementById("arrow-retriever-kb").classList.toggle("active", retriever && kb);
+      document.getElementById("arrow-kb-llm").classList.toggle("active", kb && retriever && llm);
+      document.getElementById("arrow-llm-answer").classList.toggle("active", llm);
+
+      proofText.textContent = responses[getKey()].proof;
+    }
+
+    function appendMessage(text, className) {
+      const div = document.createElement("div");
+      div.className = `bubble ${className}`;
+      div.textContent = text;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function handleSend() {
+      const userQuestion = questionInput.value.trim() || "Example question";
+      const config = responses[getKey()];
+
+      appendMessage(userQuestion, "user");
+      appendMessage(config.answer, "bot");
+
+      const explainDiv = document.createElement("div");
+      explainDiv.className = "explanation-box";
+      explainDiv.innerHTML = `<strong>What this proves:</strong> ${config.proof}`;
+      chatWindow.appendChild(explainDiv);
+
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+      questionInput.value = "";
+    }
+
+    llmCheckbox.addEventListener("change", updateDiagram);
+    retrieverCheckbox.addEventListener("change", updateDiagram);
+    kbCheckbox.addEventListener("change", updateDiagram);
+    document.getElementById("sendBtn").addEventListener("click", handleSend);
+
+    updateDiagram();
+  </script>
+</body>
+</html>
