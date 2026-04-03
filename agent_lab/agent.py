@@ -83,9 +83,9 @@ def _build_plan(goal: str, enabled_tools: list[str]) -> list[ToolDecision]:
     return plan[:5]
 
 
-def _run_tool(tool_name: str, goal: str, history: list[dict]) -> dict:
-    tool_fn: Callable[[str, list[dict]], dict] = TOOL_DEFINITIONS[tool_name]["fn"]
-    return tool_fn(goal, history)
+def _run_tool(tool_name: str, goal: str, history: list[dict], context: dict | None = None) -> dict:
+    tool_fn: Callable[[str, list[dict], dict | None], dict] = TOOL_DEFINITIONS[tool_name]["fn"]
+    return tool_fn(goal, history, context)
 
 
 def _coerce_json(text: str) -> dict:
@@ -189,6 +189,7 @@ def run_agent(
     mode: str = "Demo Mode",
     api_key: str | None = None,
     model: str | None = None,
+    context: dict | None = None,
 ) -> dict:
     history: list[dict] = []
     warning = None
@@ -203,7 +204,7 @@ def run_agent(
         plan = _build_plan(goal, enabled_tools)
 
     for step_number, decision in enumerate(plan, start=1):
-        result = _run_tool(decision.tool, goal, history)
+        result = _run_tool(decision.tool, goal, history, context)
         history.append(
             {
                 "step": step_number,

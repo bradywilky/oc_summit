@@ -11,7 +11,11 @@ The app lets attendees:
 - watch the agent take step-by-step actions
 - review a final dinner and networking plan
 
-The experience is intentionally local and deterministic. It uses curated Dallas and attendee demo data instead of brittle live integrations.
+The experience is mostly local and deterministic. It uses curated Dallas and attendee demo data instead of brittle live integrations, with live weather and optional live Foursquare lookup layered on top.
+
+The weather tool calls the live Open-Meteo forecast API for Dallas and falls back to a static summary if the request fails.
+
+The restaurant finder and event finder can call the live Foursquare Places API near your hotel or conference location using the current `places-api.foursquare.com` endpoint with Bearer auth and an explicit Places API version header. The event finder uses Foursquare to suggest nearby after-dinner venues such as live music spots, rooftops, comedy clubs, and cocktail bars. If `FOURSQUARE_API_KEY` is missing or the request fails, both tools fall back to the built-in demo datasets.
 
 ## Modes
 
@@ -19,6 +23,8 @@ The experience is intentionally local and deterministic. It uses curated Dallas 
 - `LLM Mode` uses the OpenAI Responses API to choose tool steps and synthesize the final answer.
 
 For `LLM Mode`, set `OPENAI_API_KEY` in your environment or paste the key into the sidebar at runtime. You can also set `OPENAI_MODEL` to change the default model shown in the UI.
+
+For live Foursquare search, set `FOURSQUARE_API_KEY` in your environment or paste it into the sidebar at runtime. The sidebar also lets you change the hotel/search center used for nearby restaurant and venue results.
 
 ## Run it
 

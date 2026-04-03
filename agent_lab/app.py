@@ -38,9 +38,16 @@ def init_state() -> None:
         st.session_state.openai_model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     if "openai_api_key" not in st.session_state:
         st.session_state.openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    if "hotel_location" not in st.session_state:
+        st.session_state.hotel_location = os.getenv(
+            "HOTEL_LOCATION",
+            "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201",
+        )
+    if "foursquare_api_key" not in st.session_state:
+        st.session_state.foursquare_api_key = os.getenv("FOURSQUARE_API_KEY", "")
 
 
-def render_sidebar() -> tuple[list[str], str, str, str]:
+def render_sidebar() -> tuple[list[str], str, str, str, str]:
     st.sidebar.header("Run Mode")
     mode = st.sidebar.radio(
         "Choose how the app should run.",
@@ -68,6 +75,22 @@ def render_sidebar() -> tuple[list[str], str, str, str]:
             st.sidebar.warning("LLM Mode needs an OpenAI API key from the sidebar or OPENAI_API_KEY.")
 
     st.sidebar.divider()
+    st.sidebar.header("Live Foursquare Search")
+    hotel_location = st.sidebar.text_input(
+        "Hotel or search center",
+        key="hotel_location",
+        help="Nearby restaurant and after-dinner venue search is centered on this location.",
+    )
+    foursquare_api_key = st.sidebar.text_input(
+        "Foursquare API key",
+        key="foursquare_api_key",
+        type="password",
+        help="Leave this blank if FOURSQUARE_API_KEY is already set in your environment.",
+    )
+    if not (foursquare_api_key or os.getenv("FOURSQUARE_API_KEY")):
+        st.sidebar.caption("Without a Foursquare key, the app falls back to the built-in restaurant and event lists.")
+
+    st.sidebar.divider()
     st.sidebar.header("Agent Tools")
     st.sidebar.caption("Give the AI a few powers, then watch how the plan improves.")
 
@@ -86,7 +109,7 @@ def render_sidebar() -> tuple[list[str], str, str, str]:
     st.sidebar.subheader("How To Explain It")
     st.sidebar.info(AGENT_DEFINITION)
     st.sidebar.caption(CONFERENCE_TALK_TRACK)
-    return selected_tools, mode, api_key, model
+    return selected_tools, mode, api_key, model, hotel_location
 
 
 def render_header() -> None:
@@ -126,7 +149,7 @@ def render_final_answer(final_answer: str) -> None:
 def main() -> None:
     init_state()
     render_header()
-    selected_tools, mode, api_key, model = render_sidebar()
+    selected_tools, mode, api_key, model, hotel_location = render_sidebar()
 
     left, right = st.columns([1.2, 1], gap="large")
 
@@ -161,12 +184,15 @@ def main() -> None:
         return
 
     with st.spinner("Agent is building your evening plan..."):
+        if st.session_state.foursquare_api_key:
+            os.environ["FOURSQUARE_API_KEY"] = st.session_state.foursquare_api_key
         result = run_agent(
             goal=goal,
             enabled_tools=selected_tools,
             mode=mode,
             api_key=api_key or None,
             model=model or None,
+            context={"hotel_location": hotel_location},
         )
 
     if result.get("mode_used"):
