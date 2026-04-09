@@ -11,21 +11,17 @@ CONFERENCE_TALK_TRACK = (
 TOOL_ORDER_HINTS = [
     "weather_tool",
     "restaurant_finder",
-    "budget_filter",
-    "distance_filter",
-    "attendee_lookup",
     "conversation_starter",
     "event_finder",
+    "text_message_sender",
 ]
 
 TOOL_REASON_TEMPLATES = {
     "weather_tool": "Step 1: Check whether the Dallas weather supports the kind of evening described in '{goal}'.",
     "restaurant_finder": "Find dinner options that could support the goal: '{goal}'.",
-    "budget_filter": "Tighten the restaurant list so it stays inside the user's budget goal.",
-    "distance_filter": "Refine the options so the final recommendation stays walkable and conference-friendly.",
-    "attendee_lookup": "Look for interesting conference attendees the user may want to meet during the evening.",
     "conversation_starter": "Prepare a few specific conversation starters so the networking plan feels actionable.",
     "event_finder": "Add an optional after-dinner stop to make the evening feel complete.",
+    "text_message_sender": "If the user wants an action taken or a recap delivered, send a short Twilio SMS summary after the planning steps.",
 }
 
 FINAL_PLAN_TEMPLATE = """
@@ -57,6 +53,7 @@ You are planning tool usage for a conference-safe Dallas evening planner agent.
 Pick only from the enabled tools provided by the application.
 Plan 1 to 5 steps.
 Prefer a sensible order: gather context first, then refine, then support networking.
+Only use the text_message_sender after there is enough information in prior tool results to send a useful summary.
 Return JSON only. Do not include markdown fences or commentary.
 """.strip()
 

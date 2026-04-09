@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import ssl
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import quote_plus, urlencode
 from urllib.request import Request, urlopen
 
 import certifi
+from openai import OpenAI
+
+try:
+    from twilio.base.exceptions import TwilioRestException
+    from twilio.rest import Client
+except ImportError:  # pragma: no cover - optional until Twilio is installed
+    Client = None
+    TwilioRestException = Exception
 
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -18,6 +27,10 @@ FOURSQUARE_API_VERSION = "2025-06-17"
 DALLAS_LATITUDE = 32.7767
 DALLAS_LONGITUDE = -96.7970
 DEFAULT_HOTEL_LOCATION = "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201"
+DEFAULT_TWILIO_TO_NUMBER = "+15555550123"
+DEFAULT_TWILIO_MESSAGE = (
+    "Twilio placeholder message from Agent Lab. Replace this after you finish Twilio setup."
+)
 
 
 def _load_json(filename: str) -> list[dict]:
@@ -26,10 +39,210 @@ def _load_json(filename: str) -> list[dict]:
 
 
 RESTAURANTS = _load_json("restaurants.json")
-ATTENDEES = _load_json("attendees.json")
 EVENTS = _load_json("events.json")
 
-
+BCBS_PLAN_METADATA_SOURCE = "https://www.bcbs.com/about-us/blue-cross-blue-shield-system/state-health-plan-companies"
+BCBS_STATE_PLAN_DIRECTORY = {
+    "Alabama": ["Blue Cross and Blue Shield of Alabama"],
+    "Alaska": ["Premera Blue Cross and Blue Shield of Alaska"],
+    "Arizona": ["Blue Cross Blue Shield of Arizona"],
+    "Arkansas": ["Arkansas Blue Cross and Blue Shield"],
+    "California": ["Anthem Blue Cross", "Blue Shield of California"],
+    "Colorado": ["Anthem Blue Cross and Blue Shield Colorado"],
+    "Connecticut": ["Anthem Blue Cross and Blue Shield Connecticut"],
+    "Delaware": ["Highmark Blue Cross Blue Shield Delaware"],
+    "District of Columbia": ["CareFirst BlueCross BlueShield"],
+    "Florida": ["Florida Blue"],
+    "Georgia": ["Anthem Blue Cross and Blue Shield of Georgia"],
+    "Hawaii": ["Blue Cross and Blue Shield of Hawaii"],
+    "Idaho": ["Blue Cross of Idaho", "Regence BlueShield of Idaho"],
+    "Illinois": ["Blue Cross and Blue Shield of Illinois"],
+    "Indiana": ["Anthem Blue Cross and Blue Shield Indiana"],
+    "Iowa": ["Wellmark Blue Cross and Blue Shield"],
+    "Kansas": ["Blue Cross and Blue Shield of Kansas"],
+    "Kentucky": ["Anthem Blue Cross and Blue Shield Kentucky"],
+    "Louisiana": ["Blue Cross and Blue Shield of Louisiana"],
+    "Maine": ["Anthem Blue Cross and Blue Shield Maine"],
+    "Maryland": ["CareFirst BlueCross BlueShield"],
+    "Massachusetts": ["Blue Cross and Blue Shield of Massachusetts"],
+    "Michigan": ["Blue Cross Blue Shield of Michigan"],
+    "Minnesota": ["Blue Cross and Blue Shield of Minnesota"],
+    "Mississippi": ["Blue Cross & Blue Shield of Mississippi"],
+    "Missouri": ["Anthem Blue Cross and Blue Shield Missouri", "Blue Cross and Blue Shield of Kansas City"],
+    "Montana": ["Blue Cross and Blue Shield of Montana"],
+    "Nebraska": ["Blue Cross and Blue Shield of Nebraska"],
+    "Nevada": ["Anthem Blue Cross and Blue Shield Nevada"],
+    "New Hampshire": ["Anthem Blue Cross and Blue Shield New Hampshire"],
+    "New Jersey": ["Horizon Blue Cross and Blue Shield of New Jersey"],
+    "New Mexico": ["Blue Cross and Blue Shield of New Mexico"],
+    "New York": [
+        "Anthem Blue Cross Blue Shield",
+        "Highmark Blue Cross Blue Shield of Western New York",
+        "Highmark Blue Shield of Northeastern New York",
+        "Excellus BlueCross BlueShield",
+    ],
+    "North Carolina": ["Blue Cross and Blue Shield of North Carolina"],
+    "North Dakota": ["Blue Cross Blue Shield of North Dakota"],
+    "Ohio": ["Anthem Blue Cross and Blue Shield Ohio"],
+    "Oklahoma": ["Blue Cross and Blue Shield of Oklahoma"],
+    "Oregon": ["Regence BlueCross BlueShield of Oregon"],
+    "Pennsylvania": [
+        "Capital Blue Cross",
+        "Highmark Blue Shield",
+        "Highmark Blue Cross Blue Shield",
+        "Independence Blue Cross",
+    ],
+    "Puerto Rico": ["BlueCross BlueShield of Puerto Rico"],
+    "Rhode Island": ["Blue Cross & Blue Shield of Rhode Island"],
+    "South Carolina": ["Blue Cross and Blue Shield of South Carolina"],
+    "South Dakota": ["Wellmark Blue Cross and Blue Shield"],
+    "Tennessee": ["BlueCross BlueShield of Tennessee"],
+    "Texas": ["Blue Cross and Blue Shield of Texas"],
+    "Utah": ["Regence BlueCross BlueShield of Utah"],
+    "Vermont": ["Blue Cross and Blue Shield of Vermont"],
+    "Virginia": ["Anthem Blue Cross and Blue Shield Virginia", "CareFirst BlueCross BlueShield"],
+    "Washington": ["Premera Blue Cross", "Regence BlueShield"],
+    "West Virginia": ["Highmark Blue Cross Blue Shield West Virginia"],
+    "Wisconsin": ["Anthem Blue Cross and Blue Shield Wisconsin"],
+    "Wyoming": ["Blue Cross Blue Shield of Wyoming"],
+}
+STATE_ABBREVIATIONS = {
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "DC": "District of Columbia",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    "MT": "Montana",
+    "NE": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "PR": "Puerto Rico",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming",
+}
+STATE_REGION_OVERRIDES = {
+    "District of Columbia": {
+        "city": "Washington, DC",
+        "likely_area": "Washington region",
+        "conversation_topics": [
+            "Ask how much of their work is tied to federal policy, national accounts, or employer groups in the DC market.",
+            "Washington opener: compare favorite neighborhoods for dinner or where they send visitors first.",
+            "Talk about balancing fast-moving policy work with practical member experience work on the ground.",
+        ],
+    },
+    "Florida": {
+        "city": "Jacksonville",
+        "likely_area": "Jacksonville and statewide Florida operations",
+    },
+    "Illinois": {
+        "city": "Chicago",
+        "likely_area": "Chicago area",
+        "conversation_topics": [
+            "Chicago opener: ask which part of the city they end up in most for work and client meetings.",
+            "Compare notes on enterprise scale, large employer groups, and how member expectations differ across a big metro.",
+            "Ask what trends they are hearing from providers and members across Chicagoland versus downstate Illinois.",
+        ],
+    },
+    "Iowa": {
+        "city": "Des Moines",
+        "likely_area": "Des Moines area",
+        "conversation_topics": [
+            "Des Moines opener: ask what part of the city their team is based in and what they like about the local business community.",
+            "Talk about how statewide plans balance metro needs with rural provider and member realities across Iowa.",
+            "Ask what surprises outsiders about healthcare innovation and employer relationships in Iowa.",
+        ],
+    },
+    "Maryland": {
+        "city": "Baltimore-Washington corridor",
+        "likely_area": "Baltimore and Washington corridor",
+    },
+    "Massachusetts": {
+        "city": "Boston",
+        "likely_area": "Boston area",
+    },
+    "Michigan": {
+        "city": "Detroit",
+        "likely_area": "Detroit area",
+        "conversation_topics": [
+            "Detroit opener: ask how much of their work is centered downtown versus across the broader metro.",
+            "Talk about large enterprise operations, service transformation, and the pace of modernization in Michigan.",
+            "Ask what local provider or employer dynamics make Michigan different from other BCBS markets.",
+        ],
+    },
+    "Minnesota": {
+        "city": "Eagan / Minneapolis-St. Paul",
+        "likely_area": "Twin Cities area",
+    },
+    "New Jersey": {
+        "city": "Newark area",
+        "likely_area": "North Jersey / Newark area",
+    },
+    "North Carolina": {
+        "city": "Durham / Chapel Hill",
+        "likely_area": "Research Triangle area",
+    },
+    "Pennsylvania": {
+        "city": "Philadelphia, Pittsburgh, or Harrisburg",
+        "likely_area": "one of the major Pennsylvania BCBS markets",
+    },
+    "Texas": {
+        "city": "Richardson / Dallas-Fort Worth",
+        "likely_area": "Dallas-Fort Worth area",
+        "conversation_topics": [
+            "Texas opener: ask whether their team is more Dallas-area, Austin, Houston, or statewide in how it works together.",
+            "Talk about scale, growth, and how a large Texas market changes the way teams prioritize member and provider experience.",
+            "Ask what regional differences inside Texas show up most clearly in their product or operations work.",
+        ],
+    },
+    "Virginia": {
+        "city": "Richmond or Northern Virginia / DC corridor",
+        "likely_area": "Virginia home market",
+    },
+    "Washington": {
+        "city": "Seattle area",
+        "likely_area": "Seattle and statewide Washington operations",
+    },
+}
 def _price_level_from_foursquare(value: int | None) -> int:
     if value is None:
         return 2
@@ -51,6 +264,224 @@ def _good_for_groups(chains: list[dict] | None) -> bool:
 
 def _walk_minutes_from_distance(distance_meters: int) -> int:
     return max(1, round(distance_meters / 80))
+
+
+def _normalize_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _restaurant_query(name: str, address: str | None = None) -> str:
+    parts = [name.strip()]
+    if address and address.strip() and address != "Address unavailable":
+        parts.append(address.strip())
+    parts.append("Dallas TX")
+    return ", ".join(parts)
+
+
+def _google_maps_url(name: str, address: str | None = None) -> str:
+    return f"https://www.google.com/maps/search/?api=1&query={quote_plus(_restaurant_query(name, address))}"
+
+
+def _booking_search_url(name: str, address: str | None = None) -> str:
+    query = _restaurant_query(name, address)
+    return f"https://www.opentable.com/s/?term={quote_plus(query)}"
+
+
+def _website_search_url(name: str, address: str | None = None) -> str:
+    query = f"{_restaurant_query(name, address)} official website"
+    return f"https://www.google.com/search?q={quote_plus(query)}"
+
+
+def _with_restaurant_links(restaurant: dict) -> dict:
+    enriched = dict(restaurant)
+    name = enriched.get("name", "Unknown restaurant")
+    address = enriched.get("address")
+    enriched["maps_url"] = _google_maps_url(name, address)
+    enriched["booking_url"] = _booking_search_url(name, address)
+    enriched["website_url"] = _website_search_url(name, address)
+    enriched["reservable"] = True
+    return enriched
+
+
+def _generic_conversation_topics(state: str) -> list[str]:
+    return [
+        f"Ask what part of {state} their team is closest to and whether their day-to-day work feels statewide or metro-centered.",
+        f"Compare notes on provider, employer, and member expectations in {state} versus other BCBS markets.",
+        f"Use a light regional opener: ask what visitors usually misunderstand about working in {state}.",
+    ]
+
+
+def _extract_state_hints(goal: str) -> list[dict]:
+    normalized = f" {_normalize_text(goal)} "
+    hints: list[dict] = []
+    seen_states: set[str] = set()
+
+    if any(token in normalized for token in (" fepoc ", " federal employee program ", " federal employees program ", " fep ")):
+        hints.append(
+            {
+                "kind": "special",
+                "key": "fep",
+                "organization": "Federal Employee Program (FEP)",
+                "state": "Federal / national",
+                "city": "National program team",
+                "likely_area": "federal employee program operations",
+                "conversation_topics": [
+                    "Ask how FEP work differs from supporting a single regional plan.",
+                    "Talk about what is uniquely complex about serving federal employees, retirees, and their families.",
+                    "Compare notes on where national operating models help and where local plan realities still matter.",
+                ],
+                "confidence": "high",
+                "matched_on": "FEP / FEPOC mention",
+            }
+        )
+
+    for state in BCBS_STATE_PLAN_DIRECTORY:
+        normalized_state = f" {_normalize_text(state)} "
+        if normalized_state in normalized and state not in seen_states:
+            hints.append({"kind": "state", "state": state, "matched_on": state, "confidence": "high"})
+            seen_states.add(state)
+
+    for abbreviation, state in STATE_ABBREVIATIONS.items():
+        if state in seen_states:
+            continue
+        if f" {abbreviation.lower()} " in normalized:
+            hints.append({"kind": "state", "state": state, "matched_on": abbreviation, "confidence": "medium"})
+            seen_states.add(state)
+
+    return hints
+
+
+def _coerce_json(text: str) -> dict:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`")
+        if cleaned.startswith("json"):
+            cleaned = cleaned[4:]
+    return json.loads(cleaned.strip())
+
+
+def _llm_infer_bcbs_location_matches(goal: str, context: dict | None = None) -> list[dict]:
+    api_key = (context or {}).get("openai_api_key") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return []
+
+    client = OpenAI(api_key=api_key)
+    model = (context or {}).get("openai_model") or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    state_plan_options = [
+        {"state": state, "organizations": companies}
+        for state, companies in BCBS_STATE_PLAN_DIRECTORY.items()
+    ]
+    response = client.responses.create(
+        model=model,
+        instructions=(
+            "You map conference attendee location hints to the most likely regional BCBS Plan. "
+            "Dallas is only the conference location and must not be treated as the attendee's home Plan unless the user explicitly says the attendee is from Texas. "
+            "Use only the provided BCBS organizations. "
+            "Return JSON only with this shape: "
+            '{"matches":[{"state":"state","organization":"organization","matched_on":"location text","confidence":"low|medium|high","reason":"short explanation"}]}. '
+            "Return up to 3 matches ordered from most likely to least likely. "
+            "If the goal does not contain a meaningful attendee home-market clue, return {\"matches\":[]}."
+        ),
+        input=(
+            f"User goal:\n{goal.strip()}\n\n"
+            f"Available BCBS organizations by state:\n{json.dumps(state_plan_options, indent=2)}"
+        ),
+    )
+    payload = _coerce_json(response.output_text)
+    raw_matches = payload.get("matches", [])
+    validated_matches: list[dict] = []
+    for match in raw_matches:
+        state = match.get("state")
+        organization = match.get("organization")
+        matched_on = (match.get("matched_on") or "").strip()
+        confidence = match.get("confidence", "medium")
+        reason = (match.get("reason") or "").strip()
+        if state not in BCBS_STATE_PLAN_DIRECTORY:
+            continue
+        if organization not in BCBS_STATE_PLAN_DIRECTORY[state]:
+            continue
+        validated_matches.append(
+            {
+                "state": state,
+                "organization": organization,
+                "matched_on": matched_on or state,
+                "confidence": confidence if confidence in {"low", "medium", "high"} else "medium",
+                "reason": reason or f"Inferred from the user's location hint ({matched_on or state}).",
+            }
+        )
+    return validated_matches[:3]
+
+
+def _infer_bcbs_plan_matches(goal: str, context: dict | None = None) -> list[dict]:
+    matches: list[dict] = []
+
+    for hint in _extract_state_hints(goal):
+        if hint["kind"] == "special":
+            matches.append(
+                {
+                    "organization": hint["organization"],
+                    "state": hint["state"],
+                    "city": hint["city"],
+                    "likely_area": hint["likely_area"],
+                    "conversation_topics": hint["conversation_topics"],
+                    "confidence": hint["confidence"],
+                    "matched_on": hint["matched_on"],
+                    "source": BCBS_PLAN_METADATA_SOURCE,
+                    "inference_note": "Matched from a direct Federal Employee Program hint.",
+                }
+            )
+            continue
+
+        state = hint["state"]
+        region = STATE_REGION_OVERRIDES.get(state, {})
+        city = region.get("city", f"{state} regional market")
+        likely_area = region.get("likely_area", f"{state} regional market")
+        topics = region.get("conversation_topics", _generic_conversation_topics(state))
+
+        for company in BCBS_STATE_PLAN_DIRECTORY.get(state, []):
+            matches.append(
+                {
+                    "organization": company,
+                    "state": state,
+                    "city": city,
+                    "likely_area": likely_area,
+                    "conversation_topics": topics,
+                    "confidence": hint["confidence"],
+                    "matched_on": hint["matched_on"],
+                    "source": BCBS_PLAN_METADATA_SOURCE,
+                    "inference_note": f"Inferred from the user's location hint ({hint['matched_on']}).",
+                }
+            )
+
+    if matches:
+        return matches[:4]
+
+    try:
+        llm_matches = _llm_infer_bcbs_location_matches(goal, context)
+    except Exception:
+        llm_matches = []
+
+    for match in llm_matches:
+        state = match["state"]
+        region = STATE_REGION_OVERRIDES.get(state, {})
+        city = region.get("city", f"{state} regional market")
+        likely_area = region.get("likely_area", f"{state} regional market")
+        topics = region.get("conversation_topics", _generic_conversation_topics(state))
+        matches.append(
+            {
+                "organization": match["organization"],
+                "state": state,
+                "city": city,
+                "likely_area": likely_area,
+                "conversation_topics": topics,
+                "confidence": match["confidence"],
+                "matched_on": match["matched_on"],
+                "source": BCBS_PLAN_METADATA_SOURCE,
+                "inference_note": match["reason"],
+            }
+        )
+
+    return matches[:4]
 
 
 def _foursquare_request(params: dict[str, str | int]) -> dict:
@@ -176,7 +607,7 @@ def restaurant_finder(goal: str, history: list[dict], context: dict | None = Non
             key=lambda item: (item["walk_minutes"], item["price_level"], -int(item["good_for_groups"])),
         )
         return {
-            "restaurants": ranked[:4],
+            "restaurants": [_with_restaurant_links(item) for item in ranked[:4]],
             "source": "Foursquare Places API",
             "live": True,
             "search_center": location,
@@ -187,7 +618,7 @@ def restaurant_finder(goal: str, history: list[dict], context: dict | None = Non
             key=lambda item: (item["walk_minutes"], item["price_level"], -int(item["good_for_groups"])),
         )
         return {
-            "restaurants": ranked[:4],
+            "restaurants": [_with_restaurant_links(item) for item in ranked[:4]],
             "source": "Fallback restaurant dataset",
             "live": False,
             "search_center": location,
@@ -285,54 +716,23 @@ def weather_tool(goal: str, history: list[dict], context: dict | None = None) ->
         }
 
 
-def attendee_lookup(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    del context
-    text = goal.lower()
-    matches = []
-    for attendee in ATTENDEES:
-        interests = " ".join(attendee["interests"]).lower()
-        if "ai" in text and "ai" in interests:
-            matches.append(attendee)
-        elif any(word in text for word in ("network", "people", "conference", "socialize", "meet")):
-            matches.append(attendee)
-
-    return {"matches": matches[:3] or ATTENDEES[:3]}
-
-
 def conversation_starter(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    del context
-    attendee_results = next(
-        (item["result"] for item in reversed(history) if item["tool"] == "attendee_lookup"),
-        {"matches": ATTENDEES[:2]},
-    )
+    del history
+    inferred_connections = _infer_bcbs_plan_matches(goal, context)
     starters = []
-    for attendee in attendee_results["matches"][:3]:
-        topic = attendee["interests"][0]
+    for inferred in inferred_connections[:3]:
         starters.append(
-            f"Ask {attendee['name']} how {attendee['organization']} is approaching {topic}."
+            f"If they are with {inferred['organization']}, ask whether their work is centered in {inferred['likely_area']} or spread across {inferred['state']}."
         )
-    starters.append("Compare notes on where agent demos feel real versus where they become too brittle.")
-    return {"starters": starters}
-
-
-def budget_filter(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    del context
-    restaurants = next(
-        (item["result"]["restaurants"] for item in reversed(history) if item["tool"] == "restaurant_finder"),
-        RESTAURANTS,
-    )
-    filtered = [restaurant for restaurant in restaurants if restaurant["price_level"] <= 2]
-    return {"restaurants": filtered or restaurants[:2], "constraint": "Kept options at approximately $50 or less per person."}
-
-
-def distance_filter(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    del context
-    restaurants = next(
-        (item["result"]["restaurants"] for item in reversed(history) if item["tool"] in {"budget_filter", "restaurant_finder"}),
-        RESTAURANTS,
-    )
-    filtered = [restaurant for restaurant in restaurants if restaurant["walk_minutes"] <= 15]
-    return {"restaurants": filtered or restaurants[:2], "constraint": "Kept options within an easy walk of the conference area."}
+        starters.append(inferred["conversation_topics"][0])
+        starters.append(inferred["conversation_topics"][1])
+    if not starters:
+        starters.append("Ask which BCBS Plan or regional market they support most closely.")
+        starters.append("Compare notes on where agent demos feel real versus where they become too brittle.")
+        starters.append("Ask which member or operator workflow they most want AI to improve this year.")
+    else:
+        starters.append("Ask which BCBS Plan they support, just to confirm the city-to-Plan inference before you go deeper.")
+    return {"starters": starters[:5]}
 
 
 def event_finder(goal: str, history: list[dict], context: dict | None = None) -> dict:
@@ -356,6 +756,125 @@ def event_finder(goal: str, history: list[dict], context: dict | None = None) ->
         }
 
 
+def _build_sms_summary(goal: str, history: list[dict]) -> str:
+    weather = None
+    restaurant = None
+    starter = None
+    event = None
+
+    for item in history:
+        result = item.get("result", {})
+        if item.get("tool") == "weather_tool" and not weather:
+            weather = result.get("forecast")
+        elif item.get("tool") == "restaurant_finder" and not restaurant:
+            restaurants = result.get("restaurants") or []
+            if restaurants:
+                top_pick = restaurants[0]
+                restaurant = (
+                    f"{top_pick.get('name', 'Top dinner pick')} "
+                    f"({top_pick.get('estimated_cost', 'budget TBD')}, "
+                    f"{top_pick.get('walk_minutes', '?')} min walk)"
+                )
+        elif item.get("tool") == "conversation_starter" and not starter:
+            starters = result.get("starters") or []
+            if starters:
+                starter = starters[0]
+        elif item.get("tool") == "event_finder" and not event:
+            events = result.get("events") or []
+            if events:
+                top_event = events[0]
+                event = f"{top_event.get('name', 'Optional stop')} after dinner"
+
+    lines = ["Agent Lab update:"]
+    if restaurant:
+        lines.append(f"Dinner: {restaurant}.")
+    if weather:
+        lines.append(weather)
+    if starter:
+        lines.append(f"Networking idea: {starter}")
+    if event:
+        lines.append(f"Optional next stop: {event}.")
+
+    message = " ".join(lines)
+    if message == "Agent Lab update:":
+        message = DEFAULT_TWILIO_MESSAGE
+
+    if len(message) > 320:
+        message = message[:317].rstrip() + "..."
+
+    return message
+
+
+def _send_twilio_sms(message: str) -> dict:
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    from_number = os.getenv("TWILIO_FROM_PHONE_NUMBER", "").strip()
+    to_number = os.getenv("TWILIO_TO_PHONE_NUMBER", DEFAULT_TWILIO_TO_NUMBER).strip()
+
+    missing_fields = [
+        name
+        for name, value in (
+            ("TWILIO_ACCOUNT_SID", account_sid),
+            ("TWILIO_AUTH_TOKEN", auth_token),
+            ("TWILIO_FROM_PHONE_NUMBER", from_number),
+        )
+        if not value
+    ]
+    if missing_fields:
+        return {
+            "sent": False,
+            "setup_required": True,
+            "to": to_number,
+            "message_preview": message,
+            "missing": missing_fields,
+            "note": "Twilio credentials are not configured yet, so this is only a preview.",
+        }
+
+    if Client is None:
+        return {
+            "sent": False,
+            "setup_required": True,
+            "to": to_number,
+            "message_preview": message,
+            "missing": ["twilio package"],
+            "note": "Install dependencies from requirements.txt before sending SMS messages.",
+        }
+
+    try:
+        client = Client(account_sid, auth_token)
+        twilio_message = client.messages.create(
+            body=message,
+            from_=from_number,
+            to=to_number,
+        )
+    except TwilioRestException as exc:
+        return {
+            "sent": False,
+            "setup_required": False,
+            "to": to_number,
+            "message_preview": message,
+            "error": str(exc),
+        }
+
+    return {
+        "sent": True,
+        "setup_required": False,
+        "to": getattr(twilio_message, "to", to_number),
+        "from": getattr(twilio_message, "from_", from_number),
+        "sid": getattr(twilio_message, "sid", None),
+        "status": getattr(twilio_message, "status", None),
+        "message_preview": message,
+    }
+
+
+def text_message_sender(goal: str, history: list[dict], context: dict | None = None) -> dict:
+    del context
+    message = _build_sms_summary(goal, history)
+    result = _send_twilio_sms(message)
+    result["goal_excerpt"] = goal.strip()[:140]
+    return result
+
+
 TOOL_DEFINITIONS = {
     "restaurant_finder": {
         "label": "Restaurant Finder",
@@ -367,30 +886,20 @@ TOOL_DEFINITIONS = {
         "description": "Check tonight's Dallas weather so the plan fits the evening.",
         "fn": weather_tool,
     },
-    "attendee_lookup": {
-        "label": "Attendee Lookup",
-        "description": "Pull conference-safe attendee profiles from a demo dataset.",
-        "fn": attendee_lookup,
-    },
     "conversation_starter": {
         "label": "Conversation Starter",
-        "description": "Generate networking openers based on who the agent found.",
+        "description": "Generate networking openers from inferred BCBS Plan or FEP connections.",
         "fn": conversation_starter,
-    },
-    "budget_filter": {
-        "label": "Budget Filter",
-        "description": "Keep the evening inside a reasonable dinner budget.",
-        "fn": budget_filter,
-    },
-    "distance_filter": {
-        "label": "Walking Distance Filter",
-        "description": "Favor spots within a short walk of the conference footprint.",
-        "fn": distance_filter,
     },
     "event_finder": {
         "label": "Event Finder",
         "description": "Suggest a nearby after-dinner stop or live event.",
         "fn": event_finder,
+    },
+    "text_message_sender": {
+        "label": "Text Message Sender",
+        "description": "Send a Twilio SMS summary to a placeholder phone number after the agent builds a plan.",
+        "fn": text_message_sender,
     },
 }
 

@@ -8,11 +8,8 @@ from typing import Callable
 from openai import OpenAI
 
 from prompts import (
-    FINAL_PLAN_TEMPLATE,
     LLM_FINAL_INSTRUCTIONS,
     LLM_PLANNER_INSTRUCTIONS,
-    TOOL_ORDER_HINTS,
-    TOOL_REASON_TEMPLATES,
 )
 from tools import TOOL_DEFINITIONS, get_tool_catalog
 
@@ -21,66 +18,6 @@ from tools import TOOL_DEFINITIONS, get_tool_catalog
 class ToolDecision:
     tool: str
     reason: str
-
-
-def _goal_text(goal: str) -> str:
-    return goal.strip().lower()
-
-
-def _tool_needed(goal: str, tool_name: str) -> bool:
-    text = _goal_text(goal)
-
-    keyword_rules: dict[str, tuple[str, ...]] = {
-        "weather_tool": ("weather", "rain", "outdoor", "inside", "indoor"),
-        "budget_filter": ("budget", "$", "cheap", "afford", "under", "cost"),
-        "distance_filter": ("walk", "walking", "near", "distance", "close"),
-        "attendee_lookup": (
-            "network",
-            "people",
-            "conference",
-            "attendee",
-            "socialize",
-            "meet",
-        ),
-        "conversation_starter": (
-            "conversation",
-            "socialize",
-            "network",
-            "meet",
-            "people",
-        ),
-        "event_finder": ("event", "music", "show", "after dinner", "nightlife"),
-        "restaurant_finder": ("dinner", "food", "restaurant", "eat", "night"),
-    }
-
-    keywords = keyword_rules.get(tool_name, ())
-    return any(keyword in text for keyword in keywords)
-
-
-def _build_plan(goal: str, enabled_tools: list[str]) -> list[ToolDecision]:
-    plan: list[ToolDecision] = []
-
-    for tool_name in TOOL_ORDER_HINTS:
-        if tool_name not in enabled_tools:
-            continue
-        if _tool_needed(goal, tool_name) or tool_name == "restaurant_finder":
-            plan.append(
-                ToolDecision(
-                    tool=tool_name,
-                    reason=TOOL_REASON_TEMPLATES[tool_name].format(goal=goal.strip()),
-                )
-            )
-
-    if not plan:
-        fallback_tool = enabled_tools[0]
-        plan.append(
-            ToolDecision(
-                tool=fallback_tool,
-                reason=TOOL_REASON_TEMPLATES[fallback_tool].format(goal=goal.strip()),
-            )
-        )
-
-    return plan[:5]
 
 
 def _run_tool(tool_name: str, goal: str, history: list[dict], context: dict | None = None) -> dict:
@@ -124,18 +61,34 @@ def _llm_build_plan(goal: str, enabled_tools: list[str], api_key: str | None, mo
     return plan[:5]
 
 
+def _format_conversation_context(conversation_history: list[dict] | None) -> str:
+    if not conversation_history:
+        return "No prior conversation."
+
+    lines: list[str] = []
+    for turn in conversation_history:
+        role = turn.get("role", "user").capitalize()
+        content = (turn.get("content") or "").strip()
+        if content:
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines) if lines else "No prior conversation."
+
+
 def _llm_format_final_answer(
     goal: str,
     history: list[dict],
+    conversation_history: list[dict] | None,
     api_key: str | None,
     model: str | None,
 ) -> str:
     client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
+    conversation_context = _format_conversation_context(conversation_history)
     response = client.responses.create(
         model=model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
         instructions=LLM_FINAL_INSTRUCTIONS,
         input=(
             f"User goal:\n{goal.strip()}\n\n"
+            f"Conversation so far:\n{conversation_context}\n\n"
             "Tool observations:\n"
             f"{json.dumps(history, indent=2)}\n\n"
             "Write a polished final plan in markdown with a recommendation, people to meet, "
@@ -145,66 +98,41 @@ def _llm_format_final_answer(
     return response.output_text.strip()
 
 
-def _format_final_answer(goal: str, history: list[dict]) -> str:
-    latest_by_tool = {item["tool"]: item["result"] for item in history}
-
-    restaurants = latest_by_tool.get("restaurant_finder", {}).get("restaurants", [])
-    weather = latest_by_tool.get("weather_tool", {}).get("forecast", "Pleasant weather expected.")
-    attendees = latest_by_tool.get("attendee_lookup", {}).get("matches", [])
-    conversation = latest_by_tool.get("conversation_starter", {}).get("starters", [])
-    events = latest_by_tool.get("event_finder", {}).get("events", [])
-
-    top_restaurant = restaurants[0]["name"] if restaurants else "The Rustic"
-    top_budget = restaurants[0].get("estimated_cost", "$35") if restaurants else "$35"
-    walking_time = restaurants[0].get("walk_minutes", 12) if restaurants else 12
-
-    attendee_lines = []
-    for attendee in attendees[:2]:
-        attendee_lines.append(
-            f"- **{attendee['name']}** ({attendee['organization']}) - {attendee['role']}"
-        )
-    attendee_block = "\n".join(attendee_lines) if attendee_lines else "- No attendee matches found"
-
-    starter_lines = [f"- {item}" for item in conversation[:3]]
-    starter_block = "\n".join(starter_lines) if starter_lines else "- Ask what they are seeing as the biggest AI opportunity in their plan."
-
-    event_lines = [f"- {item['name']} at {item['time']}" for item in events[:2]]
-    event_block = "\n".join(event_lines) if event_lines else "- Keep the evening focused on dinner and networking."
-
-    return FINAL_PLAN_TEMPLATE.format(
-        goal=goal.strip(),
-        weather=weather,
-        restaurant=top_restaurant,
-        budget=top_budget,
-        walking_time=walking_time,
-        attendee_block=attendee_block,
-        starter_block=starter_block,
-        event_block=event_block,
-    )
-
-
 def run_agent(
     goal: str,
     enabled_tools: list[str],
-    mode: str = "Demo Mode",
     api_key: str | None = None,
     model: str | None = None,
     context: dict | None = None,
+    conversation_history: list[dict] | None = None,
 ) -> dict:
     history: list[dict] = []
-    warning = None
+    tool_context = dict(context or {})
+    if api_key or os.getenv("OPENAI_API_KEY"):
+        tool_context["openai_api_key"] = api_key or os.getenv("OPENAI_API_KEY")
+    if model or os.getenv("OPENAI_MODEL"):
+        tool_context["openai_model"] = model or os.getenv("OPENAI_MODEL")
+    effective_goal = goal.strip()
+    if conversation_history:
+        conversation_context = _format_conversation_context(conversation_history)
+        effective_goal = (
+            "Continue this conversation with awareness of the previous turns.\n\n"
+            f"Conversation so far:\n{conversation_context}\n\n"
+            f"Latest user request:\n{goal.strip()}"
+        )
 
-    if mode == "LLM Mode":
-        try:
-            plan = _llm_build_plan(goal, enabled_tools, api_key=api_key, model=model)
-        except Exception as exc:
-            plan = _build_plan(goal, enabled_tools)
-            warning = f"LLM planning failed, so the app fell back to Demo Mode planning. Details: {exc}"
-    else:
-        plan = _build_plan(goal, enabled_tools)
+    try:
+        plan = _llm_build_plan(effective_goal, enabled_tools, api_key=api_key, model=model)
+    except Exception as exc:
+        return {
+            "history": [],
+            "final": "The agent could not build a plan because LLM planning failed.",
+            "mode_used": "LLM Mode",
+            "warning": f"LLM planning failed. Details: {exc}",
+        }
 
     for step_number, decision in enumerate(plan, start=1):
-        result = _run_tool(decision.tool, goal, history, context)
+        result = _run_tool(decision.tool, effective_goal, history, tool_context)
         history.append(
             {
                 "step": step_number,
@@ -215,16 +143,17 @@ def run_agent(
             }
         )
 
-    mode_used = mode
-    if mode == "LLM Mode":
-        try:
-            final = _llm_format_final_answer(goal, history, api_key=api_key, model=model)
-        except Exception as exc:
-            final = _format_final_answer(goal, history)
-            mode_used = "Demo Mode"
-            detail = f"LLM final synthesis failed, so the app used the built-in template instead. Details: {exc}"
-            warning = f"{warning}\n\n{detail}" if warning else detail
-    else:
-        final = _format_final_answer(goal, history)
+    try:
+        final = _llm_format_final_answer(
+            goal,
+            history,
+            conversation_history,
+            api_key=api_key,
+            model=model,
+        )
+        warning = None
+    except Exception as exc:
+        final = "The agent completed its tool runs, but LLM final synthesis failed."
+        warning = f"LLM final synthesis failed. Details: {exc}"
 
-    return {"history": history, "final": final, "mode_used": mode_used, "warning": warning}
+    return {"history": history, "final": final, "mode_used": "LLM Mode", "warning": warning}
