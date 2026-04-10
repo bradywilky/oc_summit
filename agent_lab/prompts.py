@@ -13,7 +13,7 @@ TOOL_ORDER_HINTS = [
     "restaurant_finder",
     "conversation_starter",
     "event_finder",
-    "text_message_sender",
+    "discord_message_sender",
 ]
 
 TOOL_REASON_TEMPLATES = {
@@ -21,7 +21,7 @@ TOOL_REASON_TEMPLATES = {
     "restaurant_finder": "Find dinner options that could support the goal: '{goal}'.",
     "conversation_starter": "Prepare a few specific conversation starters so the networking plan feels actionable.",
     "event_finder": "Add an optional after-dinner stop to make the evening feel complete.",
-    "text_message_sender": "If the user wants an action taken or a recap delivered, send a short Twilio SMS summary after the planning steps.",
+    "discord_message_sender": "If the user wants an action taken or a recap delivered, send a short Discord channel summary after the planning steps.",
 }
 
 FINAL_PLAN_TEMPLATE = """
@@ -53,7 +53,7 @@ You are planning tool usage for a conference-safe Dallas evening planner agent.
 Pick only from the enabled tools provided by the application.
 Plan 1 to 5 steps.
 Prefer a sensible order: gather context first, then refine, then support networking.
-Only use the text_message_sender after there is enough information in prior tool results to send a useful summary.
+Only use the discord_message_sender after there is enough information in prior tool results to send a useful summary.
 Return JSON only. Do not include markdown fences or commentary.
 """.strip()
 

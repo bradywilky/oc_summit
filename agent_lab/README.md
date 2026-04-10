@@ -18,7 +18,7 @@ The weather tool calls the live Open-Meteo forecast API for Dallas and falls bac
 
 The restaurant finder and event finder can call the live Foursquare Places API near your hotel or conference location using the current `places-api.foursquare.com` endpoint with Bearer auth and an explicit Places API version header. The event finder uses Foursquare to suggest nearby after-dinner venues such as live music spots, rooftops, comedy clubs, and cocktail bars. If `FOURSQUARE_API_KEY` is missing or the request fails, both tools fall back to the built-in demo datasets.
 
-The text message sender uses Twilio to send a short SMS summary. Until you create a Twilio account, the tool safely returns a preview and reports which environment variables are still missing. The current destination number defaults to the static placeholder `+15555550123`.
+The Discord message sender posts a short summary to a Discord channel using a bot token. Until you configure Discord credentials, the tool safely returns a preview and reports which environment variables are still missing.
 
 ## OpenAI setup
 
@@ -26,12 +26,10 @@ Set `OPENAI_API_KEY` in your environment or paste the key into the sidebar at ru
 
 For live Foursquare search, set `FOURSQUARE_API_KEY` in your environment or paste it into the sidebar at runtime. The sidebar also lets you change the hotel/search center used for nearby restaurant and venue results.
 
-For Twilio SMS, set these environment variables after signup:
+For Discord messages, set these environment variables:
 
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_FROM_PHONE_NUMBER`
-- `TWILIO_TO_PHONE_NUMBER` (optional; the app uses a static placeholder if you leave this unset)
+- `DISCORD_BOT_TOKEN`
+- `DISCORD_CHANNEL_ID`
 
 ## Run it
 

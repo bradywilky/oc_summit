@@ -35,6 +35,7 @@ def init_state() -> None:
             "restaurant_finder",
             "weather_tool",
             "conversation_starter",
+            "discord_message_sender",
         ]
     if "openai_model" not in st.session_state:
         st.session_state.openai_model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")

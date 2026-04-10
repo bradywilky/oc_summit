@@ -10,27 +10,19 @@ from urllib.parse import quote_plus, urlencode
 from urllib.request import Request, urlopen
 
 import certifi
+import requests
 from openai import OpenAI
-
-try:
-    from twilio.base.exceptions import TwilioRestException
-    from twilio.rest import Client
-except ImportError:  # pragma: no cover - optional until Twilio is installed
-    Client = None
-    TwilioRestException = Exception
 
 
 DATA_DIR = Path(__file__).parent / "data"
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 FOURSQUARE_SEARCH_URL = "https://places-api.foursquare.com/places/search"
 FOURSQUARE_API_VERSION = "2025-06-17"
+DISCORD_API_BASE_URL = "https://discord.com/api/v10"
 DALLAS_LATITUDE = 32.7767
 DALLAS_LONGITUDE = -96.7970
 DEFAULT_HOTEL_LOCATION = "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201"
-DEFAULT_TWILIO_TO_NUMBER = "+15555550123"
-DEFAULT_TWILIO_MESSAGE = (
-    "Twilio placeholder message from Agent Lab. Replace this after you finish Twilio setup."
-)
+DEFAULT_DISCORD_MESSAGE = "Discord placeholder message from Agent Lab. Replace this after setup."
 
 
 def _load_json(filename: str) -> list[dict]:
@@ -756,7 +748,7 @@ def event_finder(goal: str, history: list[dict], context: dict | None = None) ->
         }
 
 
-def _build_sms_summary(goal: str, history: list[dict]) -> str:
+def _build_message_summary(goal: str, history: list[dict]) -> str:
     weather = None
     restaurant = None
     starter = None
@@ -797,26 +789,40 @@ def _build_sms_summary(goal: str, history: list[dict]) -> str:
 
     message = " ".join(lines)
     if message == "Agent Lab update:":
-        message = DEFAULT_TWILIO_MESSAGE
+        message = DEFAULT_DISCORD_MESSAGE
 
-    if len(message) > 320:
-        message = message[:317].rstrip() + "..."
+    if len(message) > 1800:
+        message = message[:1797].rstrip() + "..."
 
     return message
 
 
-def _send_twilio_sms(message: str) -> dict:
-    account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
-    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
-    from_number = os.getenv("TWILIO_FROM_PHONE_NUMBER", "").strip()
-    to_number = os.getenv("TWILIO_TO_PHONE_NUMBER", DEFAULT_TWILIO_TO_NUMBER).strip()
+def _discord_request(method: str, endpoint: str, bot_token: str, **kwargs) -> dict | str:
+    url = f"{DISCORD_API_BASE_URL}{endpoint}"
+    headers = {
+        "Authorization": f"Bot {bot_token}",
+        "Content-Type": "application/json",
+    }
+    response = requests.request(method, url, headers=headers, timeout=30, **kwargs)
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = response.text
+
+    response.raise_for_status()
+    return data
+
+
+def _send_discord_message(message: str) -> dict:
+    bot_token = os.getenv("DISCORD_BOT_TOKEN", "").strip()
+    channel_id = os.getenv("DISCORD_CHANNEL_ID", "").strip()
 
     missing_fields = [
         name
         for name, value in (
-            ("TWILIO_ACCOUNT_SID", account_sid),
-            ("TWILIO_AUTH_TOKEN", auth_token),
-            ("TWILIO_FROM_PHONE_NUMBER", from_number),
+            ("DISCORD_BOT_TOKEN", bot_token),
+            ("DISCORD_CHANNEL_ID", channel_id),
         )
         if not value
     ]
@@ -824,34 +830,25 @@ def _send_twilio_sms(message: str) -> dict:
         return {
             "sent": False,
             "setup_required": True,
-            "to": to_number,
+            "channel_id": channel_id or None,
             "message_preview": message,
             "missing": missing_fields,
-            "note": "Twilio credentials are not configured yet, so this is only a preview.",
-        }
-
-    if Client is None:
-        return {
-            "sent": False,
-            "setup_required": True,
-            "to": to_number,
-            "message_preview": message,
-            "missing": ["twilio package"],
-            "note": "Install dependencies from requirements.txt before sending SMS messages.",
+            "note": "Discord credentials are not configured yet, so this is only a preview.",
         }
 
     try:
-        client = Client(account_sid, auth_token)
-        twilio_message = client.messages.create(
-            body=message,
-            from_=from_number,
-            to=to_number,
+        bot_user = _discord_request("GET", "/users/@me", bot_token)
+        discord_message = _discord_request(
+            "POST",
+            f"/channels/{channel_id}/messages",
+            bot_token,
+            json={"content": message},
         )
-    except TwilioRestException as exc:
+    except requests.RequestException as exc:
         return {
             "sent": False,
             "setup_required": False,
-            "to": to_number,
+            "channel_id": channel_id,
             "message_preview": message,
             "error": str(exc),
         }
@@ -859,18 +856,20 @@ def _send_twilio_sms(message: str) -> dict:
     return {
         "sent": True,
         "setup_required": False,
-        "to": getattr(twilio_message, "to", to_number),
-        "from": getattr(twilio_message, "from_", from_number),
-        "sid": getattr(twilio_message, "sid", None),
-        "status": getattr(twilio_message, "status", None),
+        "channel_id": channel_id,
+        "message_id": discord_message.get("id") if isinstance(discord_message, dict) else None,
+        "bot_username": bot_user.get("username") if isinstance(bot_user, dict) else None,
         "message_preview": message,
     }
 
 
-def text_message_sender(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    del context
-    message = _build_sms_summary(goal, history)
-    result = _send_twilio_sms(message)
+def discord_message_sender(goal: str, history: list[dict], context: dict | None = None) -> dict:
+    final_message = (context or {}).get("final_message")
+    if isinstance(final_message, str) and final_message.strip():
+        message = final_message.strip()
+    else:
+        message = _build_message_summary(goal, history)
+    result = _send_discord_message(message)
     result["goal_excerpt"] = goal.strip()[:140]
     return result
 
@@ -896,10 +895,10 @@ TOOL_DEFINITIONS = {
         "description": "Suggest a nearby after-dinner stop or live event.",
         "fn": event_finder,
     },
-    "text_message_sender": {
-        "label": "Text Message Sender",
-        "description": "Send a Twilio SMS summary to a placeholder phone number after the agent builds a plan.",
-        "fn": text_message_sender,
+    "discord_message_sender": {
+        "label": "Discord Message Sender",
+        "description": "Send a Discord channel message after the agent builds a plan.",
+        "fn": discord_message_sender,
     },
 }
 

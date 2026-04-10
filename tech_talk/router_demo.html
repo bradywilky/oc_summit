@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compass Router Demo</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d9dee5;
+      --text: #222222;
+      --muted: #5b6573;
+      --blue: #2d6cdf;
+      --blue-soft: #e8f0ff;
+      --green: #0f8a4b;
+      --green-soft: #e9f8ef;
+      --red: #b42318;
+      --red-soft: #fff0ed;
+      --yellow-soft: #fffbea;
+      --yellow-line: #f3e29d;
+      --purple: #7057c7;
+      --purple-soft: #f0edff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 20px;
+    }
+
+    .main {
+      padding: 20px;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 20px;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    h3 {
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .kb-toggle {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .kb-toggle label {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: start;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .kb-toggle span {
+      color: var(--muted);
+      display: block;
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .small-note {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin-top: 16px;
+    }
+
+    .diagram {
+      display: grid;
+      grid-template-columns: minmax(110px, 0.75fr) minmax(160px, 1fr) minmax(260px, 2fr) minmax(180px, 1fr) minmax(140px, 0.85fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .stage {
+      border: 2px solid #b8c2cc;
+      border-radius: 8px;
+      background: #eef2f7;
+      padding: 12px;
+      min-height: 96px;
+      opacity: 0.5;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .stage.active {
+      opacity: 1;
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .stage.done {
+      opacity: 1;
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .stage-title {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .stage-copy {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: center;
+    }
+
+    .router-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .kb-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fafbfc;
+      padding: 10px;
+      min-height: 92px;
+      display: grid;
+      gap: 6px;
+      align-content: start;
+      transition: all 0.2s ease;
+    }
+
+    .kb-card.running {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .kb-card.yes {
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .kb-card.no {
+      border-color: var(--red);
+      background: var(--red-soft);
+      opacity: 0.72;
+    }
+
+    .kb-name {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .status-pill {
+      justify-self: start;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+      padding: 5px 8px;
+    }
+
+    .status-pill.yes {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .status-pill.no {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .status-pill.running {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .decision-copy {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .timeline-label {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .track {
+      position: relative;
+      height: 18px;
+      border-radius: 8px;
+      background: #eef2f7;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .bar {
+      width: 0%;
+      height: 100%;
+      background: var(--blue);
+      transition: width 0.35s ease, background 0.2s ease;
+    }
+
+    .bar.done {
+      background: var(--green);
+    }
+
+    .bar.skipped {
+      background: #c9d1dc;
+    }
+
+    .explanation-box {
+      background: var(--yellow-soft);
+      border: 1px solid var(--yellow-line);
+      border-radius: 8px;
+      padding: 12px;
+      line-height: 1.45;
+    }
+
+    .chat-window {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fafbfc;
+      min-height: 240px;
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      line-height: 1.4;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #dbeafe;
+    }
+
+    .bot {
+      align-self: flex-start;
+      background: #e5e7eb;
+    }
+
+    .system {
+      align-self: stretch;
+      background: var(--purple-soft);
+      border: 1px solid #d8d0ff;
+      color: #3d2f79;
+      max-width: none;
+      font-size: 13px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      min-width: 0;
+    }
+
+    button {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      background: var(--blue);
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      min-width: 108px;
+    }
+
+    button:hover {
+      background: #1f57ba;
+    }
+
+    button:disabled {
+      background: #9aa8ba;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 980px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .diagram {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-row {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-label {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .main,
+      .sidebar {
+        padding: 14px;
+      }
+
+      .router-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .input-row {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <h1>Compass Router</h1>
+      <p class="small-note">
+        The router asks each knowledge base the same question in parallel. Each call returns yes or no. Only yes sources move on to answer generation.
+      </p>
+
+      <h2>Knowledge Bases</h2>
+      <div class="kb-toggle" id="kbToggles"></div>
+
+      <div class="small-note">
+        Toggle sources to change the shape of the run. The question text influences the yes/no decisions with a simple keyword simulation.
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="card">
+        <h2>Architecture View</h2>
+        <div class="diagram">
+          <div class="stage active" id="stage-question">
+            <div class="stage-title">Question</div>
+            <div class="stage-copy">The user asks Compass once.</div>
+          </div>
+
+          <div class="stage" id="stage-router">
+            <div class="stage-title">Router</div>
+            <div class="stage-copy">One relevancy call starts for every enabled knowledge base.</div>
+          </div>
+
+          <div class="stage" id="stage-decisions">
+            <div class="stage-title">Parallel Relevancy Calls</div>
+            <div class="router-grid" id="routerGrid"></div>
+          </div>
+
+          <div class="stage" id="stage-rag">
+            <div class="stage-title">RAG Answers</div>
+            <div class="stage-copy" id="ragStageCopy">Waiting for yes decisions.</div>
+          </div>
+
+          <div class="stage" id="stage-summary">
+            <div class="stage-title">Summary</div>
+            <div class="stage-copy">The final LLM combines the selected answers.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Run Timing</h2>
+        <div class="timeline" id="timeline"></div>
+      </section>
+
+      <section class="card">
+        <h2>What This Demonstrates</h2>
+        <div class="explanation-box" id="proofText">
+          A router prevents every knowledge base from doing full RAG work. It first asks a small yes/no question in parallel, then spends retrieval and answer generation only where the topic is relevant.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Chat Simulation</h2>
+        <div class="chat-window" id="chatWindow">
+          <div class="bubble bot">
+            Ask a question and click Run Router.
+          </div>
+        </div>
+
+        <div class="input-row">
+          <input
+            type="text"
+            id="questionInput"
+            value="Which BPM handoff and APIM access rules apply to this FVII exception?"
+            placeholder="Ask Compass a question..."
+          />
+          <button id="runBtn">Run Router</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const knowledgeBases = [
+      {
+        id: "fvii",
+        name: "FVII",
+        description: "FVII process notes, forms, and exception handling",
+        keywords: ["fvii", "form vii", "form 7", "exception", "workflow", "process", "approval"],
+        answer: "FVII says the request should follow the documented workflow, include the required form fields, and call out any exception that needs approval."
+      },
+      {
+        id: "bpm",
+        name: "BPM",
+        description: "Business process maps, owners, and handoffs",
+        keywords: ["bpm", "business process", "process map", "handoff", "owner", "owners", "procedure"],
+        answer: "BPM says the process owner is responsible for confirming the handoff, tracking the current step, and keeping the process map up to date."
+      },
+      {
+        id: "dpc",
+        name: "DPC",
+        description: "DPC rules, controls, and operational guidance",
+        keywords: ["dpc", "control", "controls", "compliance", "rule", "rules", "operations"],
+        answer: "DPC says the relevant control should be checked before the request proceeds, and any missing evidence should be documented."
+      },
+      {
+        id: "apim",
+        name: "APIM",
+        description: "API management, gateways, and service access",
+        keywords: ["apim", "api", "gateway", "endpoint", "service", "subscription", "access"],
+        answer: "APIM says service access should go through the approved gateway path with the correct subscription, endpoint, and access policy."
+      },
+      {
+        id: "bb",
+        name: "BB",
+        description: "BB reference material, records, and support notes",
+        keywords: ["bb", "record", "records", "reference", "support", "note", "notes"],
+        answer: "BB says the reference record should be checked for the latest support note before giving a final answer."
+      }
+    ];
+
+    const kbToggles = document.getElementById("kbToggles");
+    const routerGrid = document.getElementById("routerGrid");
+    const timeline = document.getElementById("timeline");
+    const chatWindow = document.getElementById("chatWindow");
+    const questionInput = document.getElementById("questionInput");
+    const runBtn = document.getElementById("runBtn");
+    const proofText = document.getElementById("proofText");
+    const ragStageCopy = document.getElementById("ragStageCopy");
+
+    function renderToggles() {
+      kbToggles.innerHTML = "";
+
+      knowledgeBases.forEach((kb) => {
+        const label = document.createElement("label");
+        label.innerHTML = `
+          <input type="checkbox" data-kb-toggle="${kb.id}" checked />
+          <div>${kb.name}<span>${kb.description}</span></div>
+        `;
+        kbToggles.appendChild(label);
+      });
+    }
+
+    function getEnabledKnowledgeBases() {
+      return knowledgeBases.filter((kb) => {
+        const toggle = document.querySelector(`[data-kb-toggle="${kb.id}"]`);
+        return toggle && toggle.checked;
+      });
+    }
+
+    function renderRouterCards() {
+      routerGrid.innerHTML = "";
+
+      getEnabledKnowledgeBases().forEach((kb) => {
+        const card = document.createElement("div");
+        card.className = "kb-card";
+        card.id = `kb-card-${kb.id}`;
+        card.innerHTML = `
+          <div class="kb-name">${kb.name}</div>
+          <div class="status-pill" id="kb-status-${kb.id}">Waiting</div>
+          <div class="decision-copy" id="kb-copy-${kb.id}">No router call yet.</div>
+        `;
+        routerGrid.appendChild(card);
+      });
+    }
+
+    function renderTimeline() {
+      timeline.innerHTML = "";
+
+      const rows = [
+        ["Router fan-out", "router"],
+        ["RAG answers", "rag"],
+        ["Summarizer", "summary"]
+      ];
+
+      rows.forEach(([label, id]) => {
+        const row = document.createElement("div");
+        row.className = "timeline-row";
+        row.innerHTML = `
+          <div class="timeline-label">${label}</div>
+          <div class="track"><div class="bar" id="bar-${id}"></div></div>
+        `;
+        timeline.appendChild(row);
+      });
+    }
+
+    function setStage(id, state) {
+      const stage = document.getElementById(id);
+      stage.classList.remove("active", "done");
+      if (state) {
+        stage.classList.add(state);
+      }
+    }
+
+    function setBar(id, width, className) {
+      const bar = document.getElementById(`bar-${id}`);
+      bar.className = "bar";
+      if (className) {
+        bar.classList.add(className);
+      }
+      bar.style.width = `${width}%`;
+    }
+
+    function setKbState(kbId, state, status, copy) {
+      const card = document.getElementById(`kb-card-${kbId}`);
+      const pill = document.getElementById(`kb-status-${kbId}`);
+      const copyEl = document.getElementById(`kb-copy-${kbId}`);
+
+      if (!card || !pill || !copyEl) {
+        return;
+      }
+
+      card.className = `kb-card ${state || ""}`;
+      pill.className = `status-pill ${state || ""}`;
+      pill.textContent = status;
+      copyEl.textContent = copy;
+    }
+
+    function appendMessage(text, className) {
+      const div = document.createElement("div");
+      div.className = `bubble ${className}`;
+      div.textContent = text;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function decideRelevance(kb, question) {
+      const lowerQuestion = question.toLowerCase();
+      return kb.keywords.some((keyword) => lowerQuestion.includes(keyword));
+    }
+
+    function resetRun() {
+      renderRouterCards();
+      renderTimeline();
+      setStage("stage-question", "active");
+      setStage("stage-router", "");
+      setStage("stage-decisions", "");
+      setStage("stage-rag", "");
+      setStage("stage-summary", "");
+      setBar("router", 0);
+      setBar("rag", 0);
+      setBar("summary", 0);
+      ragStageCopy.textContent = "Waiting for yes decisions.";
+    }
+
+    async function runRouter() {
+      const question = questionInput.value.trim() || "Which BPM handoff and APIM access rules apply to this FVII exception?";
+      const enabledKbs = getEnabledKnowledgeBases();
+
+      if (enabledKbs.length === 0) {
+        appendMessage("No knowledge bases are enabled, so the router has nowhere to send the question.", "bot");
+        return;
+      }
+
+      runBtn.disabled = true;
+      resetRun();
+
+      appendMessage(question, "user");
+      appendMessage("Router started. Compass is asking every enabled knowledge base whether it is relevant.", "system");
+
+      setStage("stage-question", "done");
+      setStage("stage-router", "active");
+      setStage("stage-decisions", "active");
+      setBar("router", 18);
+
+      const routerResults = await Promise.all(enabledKbs.map(async (kb, index) => {
+        setKbState(kb.id, "running", "Running", "LLM is checking instructions, question, and candidate passages.");
+        await wait(700 + index * 250);
+
+        const relevant = decideRelevance(kb, question);
+        setKbState(
+          kb.id,
+          relevant ? "yes" : "no",
+          relevant ? "YES" : "NO",
+          relevant ? "Relevant enough to run RAG." : "Skipped before full RAG work."
+        );
+
+        setBar("router", Math.round(((index + 1) / enabledKbs.length) * 100), index + 1 === enabledKbs.length ? "done" : "");
+        return { kb, relevant };
+      }));
+
+      const selected = routerResults.filter((result) => result.relevant);
+      const skipped = routerResults.filter((result) => !result.relevant);
+
+      setStage("stage-router", "done");
+      setStage("stage-decisions", "done");
+
+      appendMessage(
+        `Router decisions complete: ${selected.length} yes, ${skipped.length} no.`,
+        "system"
+      );
+
+      if (selected.length === 0) {
+        setStage("stage-rag", "done");
+        setStage("stage-summary", "done");
+        setBar("rag", 100, "skipped");
+        setBar("summary", 100, "done");
+        ragStageCopy.textContent = "No selected sources.";
+        appendMessage("None of the enabled knowledge bases look relevant, so Compass can ask a clarifying question instead of forcing an answer.", "bot");
+        runBtn.disabled = false;
+        return;
+      }
+
+      setStage("stage-rag", "active");
+      ragStageCopy.textContent = `Running RAG for ${selected.map((result) => result.kb.name).join(", ")}.`;
+      setBar("rag", 20);
+      appendMessage(`Running full RAG for: ${selected.map((result) => result.kb.name).join(", ")}.`, "system");
+
+      const ragAnswers = [];
+      for (let index = 0; index < selected.length; index += 1) {
+        await wait(650);
+        ragAnswers.push(selected[index].kb.answer);
+        setBar("rag", Math.round(((index + 1) / selected.length) * 100), index + 1 === selected.length ? "done" : "");
+      }
+
+      setStage("stage-rag", "done");
+      setStage("stage-summary", "active");
+      setBar("summary", 35);
+      appendMessage("Summarizer started. Compass is combining the selected RAG answers into one response.", "system");
+
+      await wait(800);
+      setBar("summary", 100, "done");
+      setStage("stage-summary", "done");
+
+      appendMessage(
+        `Final answer: ${ragAnswers.join(" ")} The summarizer removes source-by-source repetition and gives the user one response.`,
+        "bot"
+      );
+
+      proofText.textContent = "The important visual is the fan-out/fan-in shape: cheap yes/no router calls run in parallel, irrelevant sources stop early, relevant sources perform RAG, and the summarizer turns multiple grounded answers into one Compass answer.";
+      runBtn.disabled = false;
+    }
+
+    renderToggles();
+    resetRun();
+
+    kbToggles.addEventListener("change", resetRun);
+    runBtn.addEventListener("click", runRouter);
+  </script>
+</body>
+</html>

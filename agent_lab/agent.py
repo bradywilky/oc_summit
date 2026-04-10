@@ -25,6 +25,23 @@ def _run_tool(tool_name: str, goal: str, history: list[dict], context: dict | No
     return tool_fn(goal, history, context)
 
 
+def _goal_requests_message_delivery(goal: str) -> bool:
+    normalized = goal.lower()
+    delivery_phrases = (
+        "send the final plan",
+        "send final plan",
+        "send the plan",
+        "send plan",
+        "message me",
+        "send me",
+        "send it",
+        "as a message",
+        "to discord",
+        "discord",
+    )
+    return any(phrase in normalized for phrase in delivery_phrases)
+
+
 def _coerce_json(text: str) -> dict:
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -131,7 +148,16 @@ def run_agent(
             "warning": f"LLM planning failed. Details: {exc}",
         }
 
-    for step_number, decision in enumerate(plan, start=1):
+    should_send_discord = (
+        "discord_message_sender" in enabled_tools
+        and (
+            _goal_requests_message_delivery(effective_goal)
+            or any(decision.tool == "discord_message_sender" for decision in plan)
+        )
+    )
+    planning_steps = [decision for decision in plan if decision.tool != "discord_message_sender"]
+
+    for step_number, decision in enumerate(planning_steps, start=1):
         result = _run_tool(decision.tool, effective_goal, history, tool_context)
         history.append(
             {
@@ -155,5 +181,19 @@ def run_agent(
     except Exception as exc:
         final = "The agent completed its tool runs, but LLM final synthesis failed."
         warning = f"LLM final synthesis failed. Details: {exc}"
+
+    if should_send_discord:
+        delivery_context = dict(tool_context)
+        delivery_context["final_message"] = final
+        result = _run_tool("discord_message_sender", effective_goal, history, delivery_context)
+        history.append(
+            {
+                "step": len(history) + 1,
+                "tool": "discord_message_sender",
+                "tool_label": TOOL_DEFINITIONS["discord_message_sender"]["label"],
+                "reason": "Send the final plan as a Discord message because the goal requested message delivery.",
+                "result": result,
+            }
+        )
 
     return {"history": history, "final": final, "mode_used": "LLM Mode", "warning": warning}
