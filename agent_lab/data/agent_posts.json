@@ -1,0 +1,15 @@
+{
+  "posts": [
+    {
+      "participant_id": "2c5c91e9-14e8-4c74-841f-789dd030632b",
+      "name": "Brady Wilkinson",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-10T16:53:55.283284+00:00",
+      "source": "local",
+      "discord_message_id": "1492205984800837855"
+    }
+  ]
+}

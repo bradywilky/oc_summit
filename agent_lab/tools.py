@@ -4,6 +4,7 @@ import json
 import os
 import re
 import ssl
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote_plus, urlencode
@@ -23,6 +24,10 @@ DALLAS_LATITUDE = 32.7767
 DALLAS_LONGITUDE = -96.7970
 DEFAULT_HOTEL_LOCATION = "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201"
 DEFAULT_DISCORD_MESSAGE = "Discord placeholder message from Agent Lab. Replace this after setup."
+AGENT_POSTS_FILE = DATA_DIR / "agent_posts.json"
+AGENT_LAB_POST_MARKER = "[AGENT_LAB_POST]"
+AGENT_LAB_COLLAB_MARKER = "[AGENT_LAB_COLLAB]"
+MAX_DISCORD_MESSAGE_LENGTH = 1900
 
 
 def _load_json(filename: str) -> list[dict]:
@@ -861,6 +866,270 @@ def _send_discord_message(message: str) -> dict:
         "bot_username": bot_user.get("username") if isinstance(bot_user, dict) else None,
         "message_preview": message,
     }
+
+
+def _fetch_discord_messages(limit: int = 50) -> dict:
+    bot_token = os.getenv("DISCORD_BOT_TOKEN", "").strip()
+    channel_id = os.getenv("DISCORD_CHANNEL_ID", "").strip()
+
+    missing_fields = [
+        name
+        for name, value in (
+            ("DISCORD_BOT_TOKEN", bot_token),
+            ("DISCORD_CHANNEL_ID", channel_id),
+        )
+        if not value
+    ]
+    if missing_fields:
+        return {
+            "fetched": False,
+            "setup_required": True,
+            "channel_id": channel_id or None,
+            "messages": [],
+            "missing": missing_fields,
+            "note": "Discord credentials are not configured yet, so local demo posts are being used.",
+        }
+
+    try:
+        messages = _discord_request(
+            "GET",
+            f"/channels/{channel_id}/messages",
+            bot_token,
+            params={"limit": min(max(limit, 1), 100)},
+        )
+    except requests.RequestException as exc:
+        return {
+            "fetched": False,
+            "setup_required": False,
+            "channel_id": channel_id,
+            "messages": [],
+            "error": str(exc),
+        }
+
+    return {
+        "fetched": True,
+        "setup_required": False,
+        "channel_id": channel_id,
+        "messages": messages if isinstance(messages, list) else [],
+    }
+
+
+def _read_local_agent_posts() -> list[dict]:
+    if not AGENT_POSTS_FILE.exists():
+        return []
+
+    try:
+        with AGENT_POSTS_FILE.open(encoding="utf-8") as file:
+            payload = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    posts = payload.get("posts", []) if isinstance(payload, dict) else []
+    return posts if isinstance(posts, list) else []
+
+
+def _write_local_agent_post(post: dict) -> None:
+    AGENT_POSTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    posts = _read_local_agent_posts()
+    posts = [item for item in posts if item.get("participant_id") != post.get("participant_id")]
+    posts.append(post)
+    posts = sorted(posts, key=lambda item: item.get("posted_at", ""))
+    with AGENT_POSTS_FILE.open("w", encoding="utf-8") as file:
+        json.dump({"posts": posts[-25:]}, file, indent=2)
+
+
+def _truncate_for_discord(message: str) -> str:
+    if len(message) <= MAX_DISCORD_MESSAGE_LENGTH:
+        return message
+    return message[: MAX_DISCORD_MESSAGE_LENGTH - 3].rstrip() + "..."
+
+
+def build_agent_intent_message(profile: dict, goal: str) -> str:
+    payload = {
+        "participant_id": profile.get("participant_id", ""),
+        "name": profile.get("name", "Anonymous"),
+        "bcbs_plan": profile.get("bcbs_plan", "Unknown BCBS Plan"),
+        "job_title": profile.get("job_title", "Conference participant"),
+        "restaurant_preferences": profile.get("restaurant_preferences", ""),
+        "goal": goal.strip(),
+        "posted_at": datetime.now(timezone.utc).isoformat(),
+    }
+    readable = (
+        f"{AGENT_LAB_POST_MARKER} **{payload['name']}'s agent is looking for collaborators.**\n"
+        f"Plan: {payload['bcbs_plan']} | Role: {payload['job_title']}\n"
+        f"Food preferences: {payload['restaurant_preferences'] or 'Open to ideas'}\n"
+        f"Wants to do: {payload['goal'] or 'Meet people for dinner'}"
+    )
+    structured = json.dumps(payload, ensure_ascii=False)
+    return _truncate_for_discord(f"{readable}\n```json\n{structured}\n```")
+
+
+def _parse_agent_lab_post(message: dict) -> dict | None:
+    content = message.get("content", "")
+    if AGENT_LAB_POST_MARKER not in content:
+        return None
+
+    json_match = re.search(r"```json\s*(\{.*?\})\s*```", content, flags=re.DOTALL)
+    if json_match:
+        try:
+            payload = json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            payload = {}
+    else:
+        payload = {}
+
+    if not payload:
+        return None
+
+    author = message.get("author", {}) if isinstance(message.get("author"), dict) else {}
+    payload["discord_message_id"] = message.get("id")
+    payload["discord_author"] = author.get("username")
+    payload["discord_timestamp"] = message.get("timestamp")
+    payload["source"] = "discord"
+    return payload
+
+
+def publish_agent_post(profile: dict, goal: str) -> dict:
+    message = build_agent_intent_message(profile, goal)
+    discord_result = _send_discord_message(message)
+    local_post = {
+        "participant_id": profile.get("participant_id", ""),
+        "name": profile.get("name", "Anonymous"),
+        "bcbs_plan": profile.get("bcbs_plan", "Unknown BCBS Plan"),
+        "job_title": profile.get("job_title", "Conference participant"),
+        "restaurant_preferences": profile.get("restaurant_preferences", ""),
+        "goal": goal.strip(),
+        "posted_at": datetime.now(timezone.utc).isoformat(),
+        "source": "local",
+        "discord_message_id": discord_result.get("message_id"),
+    }
+    _write_local_agent_post(local_post)
+    return {
+        "posted": True,
+        "discord": discord_result,
+        "local_post": local_post,
+        "message_preview": message,
+    }
+
+
+def listen_for_agent_posts(current_participant_id: str | None = None, limit: int = 50) -> dict:
+    discord_result = _fetch_discord_messages(limit)
+    posts = []
+    if discord_result.get("messages"):
+        for message in discord_result["messages"]:
+            parsed = _parse_agent_lab_post(message)
+            if parsed:
+                posts.append(parsed)
+
+    if not posts:
+        posts = _read_local_agent_posts()
+
+    if current_participant_id:
+        posts = [post for post in posts if post.get("participant_id") != current_participant_id]
+
+    deduped: dict[str, dict] = {}
+    for post in posts:
+        key = post.get("participant_id") or post.get("discord_message_id") or post.get("name", "")
+        if key:
+            deduped[key] = post
+
+    sorted_posts = sorted(
+        deduped.values(),
+        key=lambda item: item.get("discord_timestamp") or item.get("posted_at") or "",
+        reverse=True,
+    )
+    return {
+        "posts": sorted_posts[:limit],
+        "discord": discord_result,
+        "source": "discord" if discord_result.get("fetched") and sorted_posts else "local",
+    }
+
+
+def _overlap_score(profile: dict, post: dict) -> int:
+    score = 0
+    profile_prefs = _normalize_text(profile.get("restaurant_preferences", ""))
+    post_prefs = _normalize_text(post.get("restaurant_preferences", ""))
+    profile_goal = _normalize_text(profile.get("goal", ""))
+    post_goal = _normalize_text(post.get("goal", ""))
+
+    if profile.get("bcbs_plan") and profile.get("bcbs_plan") == post.get("bcbs_plan"):
+        score += 4
+    if profile_prefs and post_prefs:
+        score += len(set(profile_prefs.split()) & set(post_prefs.split()))
+    if profile_goal and post_goal:
+        score += min(4, len(set(profile_goal.split()) & set(post_goal.split())))
+    if profile.get("job_title") and post.get("job_title"):
+        score += len(set(_normalize_text(profile["job_title"]).split()) & set(_normalize_text(post["job_title"]).split()))
+    return score
+
+
+def _deterministic_collaboration(profile: dict, posts: list[dict]) -> dict:
+    ranked = sorted(posts, key=lambda post: _overlap_score(profile, post), reverse=True)
+    collaborators = ranked[:3]
+    if not collaborators:
+        return {
+            "summary": "No other agent posts are visible yet. Keep listening, then refresh once more participants publish.",
+            "collaborators": [],
+            "next_steps": ["Post your intent, then ask nearby participants to do the same."],
+        }
+
+    names = ", ".join(post.get("name", "another participant") for post in collaborators)
+    next_steps = [
+        f"Reply in Discord tagging {names} and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints.",
+    ]
+    return {
+        "summary": f"Your agent found {len(collaborators)} likely collaborator(s): {names}.",
+        "collaborators": collaborators,
+        "next_steps": next_steps,
+    }
+
+
+def synthesize_agent_collaboration(profile: dict, posts: list[dict], context: dict | None = None) -> dict:
+    api_key = (context or {}).get("openai_api_key") or os.getenv("OPENAI_API_KEY")
+    model = (context or {}).get("openai_model") or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    base = _deterministic_collaboration(profile, posts)
+    if not api_key or not posts:
+        return {**base, "mode": "deterministic"}
+
+    client = OpenAI(api_key=api_key)
+    try:
+        response = client.responses.create(
+            model=model,
+            instructions=(
+                "You are coordinating conference attendee agents. "
+                "Use only the provided participant posts. "
+                "Return JSON only with this shape: "
+                '{"summary":"short recommendation","collaborators":[{"name":"name","reason":"why"}],"next_steps":["step"]}. '
+                "Prefer concrete, friendly collaboration steps that can be posted back to Discord."
+            ),
+            input=(
+                f"Current participant:\n{json.dumps(profile, indent=2)}\n\n"
+                f"Visible agent posts:\n{json.dumps(posts[:10], indent=2)}"
+            ),
+        )
+        payload = _coerce_json(response.output_text)
+    except Exception:
+        return {**base, "mode": "deterministic fallback"}
+
+    return {
+        "summary": payload.get("summary") or base["summary"],
+        "collaborators": payload.get("collaborators") or base["collaborators"],
+        "next_steps": payload.get("next_steps") or base["next_steps"],
+        "mode": "LLM Mode",
+    }
+
+
+def post_collaboration_reply(profile: dict, collaboration: dict) -> dict:
+    lines = [
+        f"{AGENT_LAB_COLLAB_MARKER} **{profile.get('name', 'An agent')} found a possible dinner group.**",
+        collaboration.get("summary", "A few participants may be good collaborators."),
+    ]
+    next_steps = collaboration.get("next_steps") or []
+    for step in next_steps[:3]:
+        lines.append(f"- {step}")
+    return _send_discord_message(_truncate_for_discord("\n".join(lines)))
 
 
 def discord_message_sender(goal: str, history: list[dict], context: dict | None = None) -> dict:

@@ -6,6 +6,11 @@ This repo contains a conference-safe Streamlit demo for a "Build Your Own Agent"
 
 The app lets attendees:
 
+- set up an agent profile with their name, BCBS Plan, job title, and restaurant preferences
+- publish a structured agent intent post to the shared Discord channel
+- listen for other participant agents in the channel
+- synthesize a collaboration plan from visible agent posts
+- post a collaboration reply back to Discord
 - describe a Dallas evening goal
 - toggle agent tools on and off
 - watch the agent take step-by-step actions
@@ -20,6 +25,8 @@ The restaurant finder and event finder can call the live Foursquare Places API n
 
 The Discord message sender posts a short summary to a Discord channel using a bot token. Until you configure Discord credentials, the tool safely returns a preview and reports which environment variables are still missing.
 
+The multi-agent lab flow uses structured Discord messages marked with `[AGENT_LAB_POST]`, so every running Streamlit session can poll the same channel and identify other participants. If Discord credentials are missing or the channel fetch fails, the app falls back to `data/agent_posts.json` so facilitators can still demo the 10-person collaboration loop locally.
+
 ## OpenAI setup
 
 Set `OPENAI_API_KEY` in your environment or paste the key into the sidebar at runtime. You can also set `OPENAI_MODEL` to change the default model shown in the UI.
@@ -30,6 +37,8 @@ For Discord messages, set these environment variables:
 
 - `DISCORD_BOT_TOKEN`
 - `DISCORD_CHANNEL_ID`
+
+The bot needs permission to read channel history and send messages in the configured channel.
 
 ## Run it
 
