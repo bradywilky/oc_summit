@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 import os
-import time
 import uuid
 
 import streamlit as st
 
-from agent import run_agent
-from prompts import AGENT_DEFINITION, CONFERENCE_TALK_TRACK
 from tools import (
-    TOOL_DEFINITIONS,
-    listen_for_agent_posts,
+    DEFAULT_LISTEN_WINDOW_MINUTES,
     post_collaboration_reply,
     publish_agent_post,
-    synthesize_agent_collaboration,
+    run_agent_negotiation_cycle,
 )
+
+
+AGENT_LOOP_INTERVAL_SECONDS = 10
 
 
 st.set_page_config(
@@ -24,113 +23,39 @@ st.set_page_config(
 )
 
 
-DEFAULT_GOAL = (
-    "Plan a fun Dallas dinner tonight where I can meet interesting people from "
-    "the conference, stay under $50, and keep it within walking distance. "
-    "I am meeting with people from Philly and do not remember their BCBS Plan."
-)
-
-
 def init_state() -> None:
-    if "goal" not in st.session_state:
-        st.session_state.goal = DEFAULT_GOAL
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = []
-    if "agent_runs" not in st.session_state:
-        st.session_state.agent_runs = []
-    if "selected_tools" not in st.session_state:
-        st.session_state.selected_tools = [
-            "restaurant_finder",
-            "weather_tool",
-            "conversation_starter",
-            "discord_message_sender",
-        ]
-    if "openai_model" not in st.session_state:
-        st.session_state.openai_model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-    if "openai_api_key" not in st.session_state:
-        st.session_state.openai_api_key = os.getenv("OPENAI_API_KEY", "")
-    if "hotel_location" not in st.session_state:
-        st.session_state.hotel_location = os.getenv(
-            "HOTEL_LOCATION",
-            "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201",
-        )
-    if "foursquare_api_key" not in st.session_state:
-        st.session_state.foursquare_api_key = os.getenv("FOURSQUARE_API_KEY", "")
-    if "participant_id" not in st.session_state:
-        st.session_state.participant_id = str(uuid.uuid4())
-    if "participant_name" not in st.session_state:
-        st.session_state.participant_name = ""
-    if "bcbs_plan" not in st.session_state:
-        st.session_state.bcbs_plan = ""
-    if "job_title" not in st.session_state:
-        st.session_state.job_title = ""
-    if "restaurant_preferences" not in st.session_state:
-        st.session_state.restaurant_preferences = ""
-    if "agent_intent" not in st.session_state:
-        st.session_state.agent_intent = (
+    defaults = {
+        "openai_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+        "participant_id": str(uuid.uuid4()),
+        "participant_name": "",
+        "bcbs_plan": "",
+        "job_title": "",
+        "restaurant_preferences": "",
+        "agent_intent": (
             "Find a dinner group near the conference where I can meet useful peers, "
             "compare AI agent ideas, and land on a restaurant that works for the group."
-        )
-    if "visible_agent_posts" not in st.session_state:
-        st.session_state.visible_agent_posts = []
-    if "collaboration_result" not in st.session_state:
-        st.session_state.collaboration_result = None
-    if "last_publish_result" not in st.session_state:
-        st.session_state.last_publish_result = None
+        ),
+        "visible_agent_posts": [],
+        "discussion_messages": [],
+        "candidate_plan": None,
+        "agent_monitoring_active": False,
+        "agent_status": "idle",
+        "agent_summary": "Your agent is waiting to be launched.",
+        "agent_activity": [],
+        "follow_up_questions": [],
+        "last_publish_result": None,
+        "last_plan_result": None,
+        "negotiation_state": {},
+        "last_cycle_result": None,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
-def render_sidebar() -> tuple[list[str], str, str, str]:
-    st.sidebar.header("OpenAI Settings")
-    api_key = st.sidebar.text_input(
-        "OpenAI API key",
-        key="openai_api_key",
-        type="password",
-        help="Leave this blank if OPENAI_API_KEY is already set in your environment.",
-    )
-    model = st.sidebar.text_input(
-        "Model",
-        key="openai_model",
-        help="You can override the default model if your account uses a different one.",
-    )
-    if not (api_key or os.getenv("OPENAI_API_KEY")):
-        st.sidebar.warning("This app now runs only in LLM Mode and needs an OpenAI API key.")
-
-    st.sidebar.divider()
-    st.sidebar.header("Live Foursquare Search")
-    hotel_location = st.sidebar.text_input(
-        "Hotel or search center",
-        key="hotel_location",
-        help="Nearby restaurant and after-dinner venue search is centered on this location.",
-    )
-    foursquare_api_key = st.sidebar.text_input(
-        "Foursquare API key",
-        key="foursquare_api_key",
-        type="password",
-        help="Leave this blank if FOURSQUARE_API_KEY is already set in your environment.",
-    )
-    if not (foursquare_api_key or os.getenv("FOURSQUARE_API_KEY")):
-        st.sidebar.caption("Without a Foursquare key, the app falls back to the built-in restaurant and event lists.")
-
-    st.sidebar.divider()
-    st.sidebar.header("Agent Tools")
-    st.sidebar.caption("Give the AI a few powers, then watch how the plan improves.")
-
-    selected_tools: list[str] = []
-    for tool_name, tool in TOOL_DEFINITIONS.items():
-        checked = tool_name in st.session_state.selected_tools
-        enabled = st.sidebar.checkbox(
-            tool["label"],
-            value=checked,
-            help=tool["description"],
-        )
-        if enabled:
-            selected_tools.append(tool_name)
-
-    st.sidebar.divider()
-    st.sidebar.subheader("How To Explain It")
-    st.sidebar.info(AGENT_DEFINITION)
-    st.sidebar.caption(CONFERENCE_TALK_TRACK)
-    return selected_tools, api_key, model, hotel_location
+def runtime_settings() -> tuple[str, str]:
+    return st.session_state.openai_api_key, st.session_state.openai_model
 
 
 def current_profile() -> dict:
@@ -144,17 +69,80 @@ def current_profile() -> dict:
     }
 
 
+def append_activity(lines: list[str]) -> None:
+    for line in lines:
+        if line:
+            st.session_state.agent_activity.append(line)
+    st.session_state.agent_activity = st.session_state.agent_activity[-12:]
+
+
+def run_cycle(profile: dict, api_key: str, model: str) -> None:
+    result = run_agent_negotiation_cycle(
+        profile,
+        context={"openai_api_key": api_key or None, "openai_model": model or None},
+        state=st.session_state.negotiation_state,
+    )
+    st.session_state.last_cycle_result = result
+    st.session_state.visible_agent_posts = result.get("visible_agent_posts", [])
+    st.session_state.discussion_messages = result.get("discussion_messages", [])
+    st.session_state.follow_up_questions = result.get("follow_up_questions", [])
+    st.session_state.agent_status = result.get("status", "idle")
+    st.session_state.agent_summary = result.get("summary", "")
+    st.session_state.negotiation_state = result.get("state", {})
+
+    candidate_plan = result.get("candidate_plan")
+    if candidate_plan:
+        st.session_state.candidate_plan = candidate_plan
+    elif result.get("status") != "proposal_ready":
+        st.session_state.candidate_plan = None
+
+    append_activity(result.get("activity", []))
+
+
+def launch_agent(profile: dict, api_key: str, model: str) -> None:
+    st.session_state.last_publish_result = publish_agent_post(profile, st.session_state.agent_intent)
+    st.session_state.agent_monitoring_active = True
+    st.session_state.agent_status = "monitoring"
+    st.session_state.agent_summary = "Your agent posted its intent and started monitoring the shared chat."
+    st.session_state.candidate_plan = None
+    st.session_state.follow_up_questions = []
+    st.session_state.negotiation_state = {}
+    append_activity(["Published this human's intent and started monitoring the agent channel."])
+    run_cycle(profile, api_key, model)
+
+
+def send_back_to_discussion(profile: dict, api_key: str, model: str) -> None:
+    st.session_state.last_publish_result = publish_agent_post(profile, st.session_state.agent_intent)
+    st.session_state.agent_monitoring_active = True
+    st.session_state.agent_status = "monitoring"
+    st.session_state.agent_summary = "Your agent is back in the discussion with your latest preferences."
+    st.session_state.candidate_plan = None
+    st.session_state.negotiation_state = {"force_new_round": True}
+    append_activity(["Republished your latest profile and sent the agent back to negotiate."])
+    run_cycle(profile, api_key, model)
+
+
+def accept_plan(profile: dict) -> None:
+    plan = st.session_state.candidate_plan
+    if not plan:
+        return
+    st.session_state.last_plan_result = post_collaboration_reply(profile, plan)
+    st.session_state.agent_monitoring_active = False
+    st.session_state.agent_status = "approved"
+    st.session_state.agent_summary = "You approved the draft, and your agent sent the plan back to the group."
+    append_activity(["Human approved the draft plan and the agent posted it to the group channel."])
+
+
 def render_header() -> None:
     st.title("Build Your Dallas Agent")
     st.write(
-        "A conference-safe demo for OC Summit breakout sessions. Ten participants can "
-        "set up their agents, publish dinner intents to Discord, listen for other "
-        "agents, and coordinate a shared plan."
+        "Each participant gets a personal agent that can watch the shared chat, talk to other agents, "
+        "check back with its human when needed, and surface a draft dinner plan for approval."
     )
 
 
 def render_profile_setup() -> dict:
-    st.subheader("1. Set Up Your Agent")
+    st.subheader("1. Human Profile")
     st.text_input("Your name", key="participant_name", placeholder="Alex Lee")
     st.text_input("BCBS Plan", key="bcbs_plan", placeholder="Independence Blue Cross")
     st.text_input("Job title", key="job_title", placeholder="Director, Product Operations")
@@ -164,11 +152,7 @@ def render_profile_setup() -> dict:
         height=90,
         placeholder="Vegetarian-friendly, under $50, easy walk, good for conversation",
     )
-    st.text_area(
-        "What do you want to do tonight?",
-        key="agent_intent",
-        height=120,
-    )
+    st.text_area("What do you want to do tonight?", key="agent_intent", height=120)
     profile = current_profile()
     missing = [
         label
@@ -181,8 +165,77 @@ def render_profile_setup() -> dict:
         if not value
     ]
     if missing:
-        st.caption(f"Still useful, but richer if you add: {', '.join(missing)}.")
+        st.caption(f"The agent can still run, but it negotiates better with: {', '.join(missing)}.")
     return profile
+
+
+def render_publish_status() -> None:
+    publish_result = st.session_state.last_publish_result
+    if not publish_result:
+        return
+
+    discord_result = publish_result.get("discord", {})
+    if discord_result.get("sent"):
+        st.caption(f"Latest agent post sent to Discord as message `{discord_result.get('message_id')}`.")
+    elif discord_result.get("setup_required"):
+        st.info("Discord is not configured, so this lab is using the local demo message store.")
+    elif discord_result.get("error"):
+        st.warning(f"Discord send failed: {discord_result['error']}")
+
+    with st.expander("Latest Intent Message"):
+        st.text(publish_result.get("message_preview", ""))
+
+
+def render_collaboration_options(collaboration: dict) -> None:
+    restaurants = collaboration.get("restaurants") or []
+    events = collaboration.get("events") or []
+
+    if restaurants:
+        st.markdown("**Dinner options**")
+        for restaurant in restaurants:
+            details = (
+                f"{restaurant.get('cuisine', 'Restaurant')} | "
+                f"{restaurant.get('estimated_cost', 'cost TBD')} | "
+                f"{restaurant.get('walk_minutes', '?')} min walk"
+            )
+            st.write(f"- **{restaurant.get('name', 'Dinner option')}** - {details}")
+        st.caption(
+            f"Restaurant source: {collaboration.get('restaurant_source', 'Unknown source')} "
+            f"near {collaboration.get('restaurant_search_center', 'the conference area')}"
+        )
+
+    if events:
+        st.markdown("**After-dinner options**")
+        for event in events:
+            details = [event.get("time"), event.get("venue_type") or event.get("type"), event.get("address")]
+            detail_text = " | ".join(str(item) for item in details if item)
+            suffix = f" - {detail_text}" if detail_text else ""
+            st.write(f"- **{event.get('name', 'After-dinner option')}**{suffix}")
+        st.caption(
+            f"Event source: {collaboration.get('event_source', 'Unknown source')} "
+            f"near {collaboration.get('event_search_center', 'the conference area')}"
+        )
+
+    if collaboration.get("group_message"):
+        with st.expander("Approved Message Preview"):
+            st.text(collaboration["group_message"])
+
+
+def render_discussion_messages(messages: list[dict]) -> None:
+    st.subheader("Agent Conversation")
+    if not messages:
+        st.caption("No agent-to-agent discussion is visible yet.")
+        return
+
+    for message in messages[:6]:
+        with st.container(border=True):
+            st.markdown(f"**{message.get('sender_name', 'Unknown agent')}**")
+            st.write(message.get("summary", "No summary provided."))
+            targets = message.get("target_names") or []
+            if targets:
+                st.caption(f"Talking with: {', '.join(targets)}")
+            for question in message.get("questions") or []:
+                st.write(f"- {question}")
 
 
 def render_participant_slots(posts: list[dict], profile: dict) -> None:
@@ -203,7 +256,7 @@ def render_participant_slots(posts: list[dict], profile: dict) -> None:
 def render_posts(posts: list[dict]) -> None:
     st.subheader("Other Agent Posts")
     if not posts:
-        st.caption("No other agent posts are visible yet. Ask a few participants to publish, then listen again.")
+        st.caption("No other active agent posts are visible yet.")
         return
 
     for post in posts:
@@ -215,243 +268,99 @@ def render_posts(posts: list[dict]) -> None:
             st.write(post.get("goal", "Looking for dinner collaborators."))
 
 
-def wait_for_other_posts(profile: dict, seconds: int = 30) -> dict:
-    deadline = time.time() + seconds
-    result = listen_for_agent_posts(profile["participant_id"])
-    while time.time() < deadline and not result["posts"]:
-        time.sleep(5)
-        result = listen_for_agent_posts(profile["participant_id"])
-    return result
-
-
-def render_agent_network(api_key: str, model: str) -> None:
-    left, right = st.columns([1, 1], gap="large")
-
-    with left:
-        profile = render_profile_setup()
-        can_publish = bool(st.session_state.participant_name.strip() and st.session_state.agent_intent.strip())
-        if st.button("Publish Agent Post", type="primary", use_container_width=True, disabled=not can_publish):
-            st.session_state.last_publish_result = publish_agent_post(profile, st.session_state.agent_intent)
-            st.success("Your agent posted its intent. If Discord is configured, it went to the channel too.")
-
-        if st.session_state.last_publish_result:
-            discord_result = st.session_state.last_publish_result.get("discord", {})
-            if discord_result.get("sent"):
-                st.caption(f"Discord message sent: {discord_result.get('message_id')}")
-            elif discord_result.get("setup_required"):
-                st.info("Discord is not configured, so this lab is using local demo posts.")
-            elif discord_result.get("error"):
-                st.warning(f"Discord send failed: {discord_result['error']}")
-            with st.expander("Post Preview"):
-                st.text(st.session_state.last_publish_result.get("message_preview", ""))
-
-    with right:
-        st.subheader("2. Listen And Collaborate")
-        listen_now = st.button("Listen Now", use_container_width=True)
-        wait_now = st.button("Wait Up To 30 Seconds", use_container_width=True)
-        if listen_now or wait_now:
-            with st.spinner("Listening for other agents..."):
-                listen_result = wait_for_other_posts(profile) if wait_now else listen_for_agent_posts(profile["participant_id"])
-            st.session_state.visible_agent_posts = listen_result["posts"]
-            discord_result = listen_result.get("discord", {})
-            if discord_result.get("setup_required"):
-                st.info("Using local demo posts because Discord credentials are not set.")
-            elif discord_result.get("error"):
-                st.warning(f"Discord listen failed: {discord_result['error']}")
-
-        if st.button("Build Collaboration Plan", use_container_width=True):
-            with st.spinner("Your agent is comparing posts and looking for a group..."):
-                st.session_state.collaboration_result = synthesize_agent_collaboration(
-                    profile,
-                    st.session_state.visible_agent_posts,
-                    context={"openai_api_key": api_key or None, "openai_model": model or None},
-                )
-
-        collaboration = st.session_state.collaboration_result
-        if collaboration:
-            st.markdown(f"**Recommendation:** {collaboration['summary']}")
-            for step in collaboration.get("next_steps", []):
-                st.write(f"- {step}")
-            if st.button("Post Collaboration Reply To Discord", use_container_width=True):
-                reply_result = post_collaboration_reply(profile, collaboration)
-                if reply_result.get("sent"):
-                    st.success("Collaboration reply posted to Discord.")
-                elif reply_result.get("setup_required"):
-                    st.info("Discord is not configured, so the reply is only a preview.")
-                    st.text(reply_result.get("message_preview", ""))
-                else:
-                    st.warning(f"Discord reply failed: {reply_result.get('error', 'Unknown error')}")
-
-    render_participant_slots(st.session_state.visible_agent_posts, current_profile())
-    render_posts(st.session_state.visible_agent_posts)
-
-
-def render_tool_summary(selected_tools: list[str]) -> None:
-    cols = st.columns(len(TOOL_DEFINITIONS))
-    for col, (tool_name, tool) in zip(cols, TOOL_DEFINITIONS.items()):
-        active = "Enabled" if tool_name in selected_tools else "Off"
-        col.metric(tool["label"], active)
-
-
-def render_activity(runs: list[dict]) -> None:
-    st.subheader("Agent Activity")
-    if not runs:
-        st.caption("Run the agent to see the plan -> act -> observe loop.")
-        return
-
-    for run_number, run in enumerate(reversed(runs), start=1):
-        label = run["user_message"]
-        with st.expander(f"Turn {len(runs) - run_number + 1}: {label}", expanded=(run_number == 1)):
-            for item in run["history"]:
-                with st.container(border=True):
-                    st.markdown(f"**Step {item['step']}**  ")
-                    st.write(item["reason"])
-                    st.caption(f"Tool used: {item['tool_label']}")
-                    if item["tool"] == "restaurant_finder":
-                        render_restaurant_results(item["result"])
-                    else:
-                        st.json(item["result"])
-
-
-def render_restaurant_results(result: dict) -> None:
-    source = result.get("source", "Unknown source")
-    search_center = result.get("search_center", "Unknown search center")
-    st.caption(f"Source: {source} | Search center: {search_center}")
-
-    for restaurant in result.get("restaurants", []):
-        with st.container(border=True):
-            st.markdown(f"**{restaurant['name']}**")
-            details = (
-                f"{restaurant.get('cuisine', 'Restaurant')} | "
-                f"{restaurant.get('estimated_cost', 'N/A')} | "
-                f"{restaurant.get('walk_minutes', '?')} min walk"
-            )
-            st.write(details)
-
-            address = restaurant.get("address")
-            if address:
-                st.caption(address)
-
-            cols = st.columns(3)
-            cols[0].link_button("Book", restaurant["booking_url"], use_container_width=True)
-            cols[1].link_button("Website", restaurant["website_url"], use_container_width=True)
-            cols[2].link_button("Map", restaurant["maps_url"], use_container_width=True)
-
-    if result.get("error"):
-        st.caption(f"Live search fallback reason: {result['error']}")
-
-
-def render_final_answer(final_answer: str) -> None:
-    st.subheader("Final Plan")
-    st.markdown(final_answer)
-
-
-def render_conversation(conversation: list[dict]) -> None:
-    st.subheader("Conversation")
-    if not conversation:
-        st.caption("Start with a goal, then use follow-ups to refine the plan.")
-        return
-
-    for message in conversation:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-
-def run_turn(
-    user_message: str,
-    selected_tools: list[str],
-    api_key: str,
-    model: str,
-    hotel_location: str,
-) -> None:
-    conversation_history = list(st.session_state.conversation)
-    with st.spinner("Agent is building your evening plan..."):
-        if st.session_state.foursquare_api_key:
-            os.environ["FOURSQUARE_API_KEY"] = st.session_state.foursquare_api_key
-        result = run_agent(
-            goal=user_message,
-            enabled_tools=selected_tools,
-            api_key=api_key or None,
-            model=model or None,
-            context={"hotel_location": hotel_location},
-            conversation_history=conversation_history,
-        )
-
-    st.session_state.conversation.append({"role": "user", "content": user_message})
-    st.session_state.conversation.append({"role": "assistant", "content": result["final"]})
-    st.session_state.agent_runs.append(
-        {
-            "user_message": user_message,
-            "history": result["history"],
-            "final": result["final"],
-            "mode_used": result.get("mode_used"),
-            "warning": result.get("warning"),
-        }
+def render_agent_console(profile: dict, api_key: str, model: str) -> None:
+    st.subheader("2. Agent Console")
+    st.caption(
+        f"The agent watches the last {DEFAULT_LISTEN_WINDOW_MINUTES} minutes of the shared chat and "
+        f"refreshes every {AGENT_LOOP_INTERVAL_SECONDS} seconds while monitoring is active."
     )
+
+    can_launch = bool(st.session_state.participant_name.strip() and st.session_state.agent_intent.strip())
+    left, middle, right = st.columns(3)
+    with left:
+        if st.button("Launch Agent", type="primary", use_container_width=True, disabled=not can_launch):
+            launch_agent(profile, api_key, model)
+    with middle:
+        if st.button("Refresh Now", use_container_width=True, disabled=not st.session_state.agent_monitoring_active):
+            run_cycle(profile, api_key, model)
+    with right:
+        if st.button("Pause Monitoring", use_container_width=True, disabled=not st.session_state.agent_monitoring_active):
+            st.session_state.agent_monitoring_active = False
+            st.session_state.agent_status = "paused"
+            st.session_state.agent_summary = "Monitoring is paused until you relaunch or refresh the agent."
+
+    status = st.session_state.agent_status
+    if status == "proposal_ready":
+        st.success(st.session_state.agent_summary)
+    elif status == "needs_human_input":
+        st.warning(st.session_state.agent_summary)
+    else:
+        st.info(st.session_state.agent_summary)
+
+    if st.session_state.follow_up_questions:
+        st.markdown("**Questions for you**")
+        for question in st.session_state.follow_up_questions:
+            st.write(f"- {question}")
+
+    candidate_plan = st.session_state.candidate_plan
+    if candidate_plan:
+        st.markdown(f"**Draft plan:** {candidate_plan.get('summary', '')}")
+        for step in candidate_plan.get("next_steps", []):
+            st.write(f"- {step}")
+        render_collaboration_options(candidate_plan)
+
+        approve_left, approve_right = st.columns(2)
+        with approve_left:
+            if st.button("Accept Plan", use_container_width=True):
+                accept_plan(profile)
+        with approve_right:
+            if st.button("Send Agent Back To Discussion", use_container_width=True):
+                send_back_to_discussion(profile, api_key, model)
+    elif st.session_state.follow_up_questions:
+        if st.button("Update Profile And Return To Discussion", use_container_width=True):
+            send_back_to_discussion(profile, api_key, model)
+
+    if st.session_state.last_plan_result:
+        plan_result = st.session_state.last_plan_result
+        if plan_result.get("sent"):
+            st.success("Approved plan posted to the group.")
+        elif plan_result.get("setup_required"):
+            st.info("Discord is not configured, so the approved group message is only shown as a preview.")
+            st.text(plan_result.get("message_preview", ""))
+        elif plan_result.get("error"):
+            st.warning(f"Plan post failed: {plan_result['error']}")
+
+    with st.expander("Recent Agent Activity", expanded=True):
+        if not st.session_state.agent_activity:
+            st.caption("The agent has not done anything yet.")
+        else:
+            for line in reversed(st.session_state.agent_activity):
+                st.write(f"- {line}")
+
+    render_discussion_messages(st.session_state.discussion_messages)
+
+
+@st.fragment(run_every=f"{AGENT_LOOP_INTERVAL_SECONDS}s")
+def render_agent_monitor(profile: dict, api_key: str, model: str) -> None:
+    if st.session_state.agent_monitoring_active:
+        run_cycle(profile, api_key, model)
 
 
 def main() -> None:
     init_state()
     render_header()
-    selected_tools, api_key, model, hotel_location = render_sidebar()
+    api_key, model = runtime_settings()
 
-    render_agent_network(api_key, model)
-    st.divider()
-    st.subheader("Optional: Inspect One Agent's Planning Loop")
-
-    left, right = st.columns([1.2, 1], gap="large")
-
+    left, right = st.columns([1, 1], gap="large")
     with left:
-        st.subheader("Goal")
-        goal = st.text_area(
-            "Tell the agent what you want to accomplish.",
-            key="goal",
-            height=140,
-        )
-        render_tool_summary(selected_tools)
-
-        run_clicked = st.button("Start Agent", type="primary", use_container_width=True)
-
+        profile = render_profile_setup()
+        render_publish_status()
     with right:
-        st.subheader("Why This Works")
-        st.write(
-            "A chatbot answers questions. An agent can take actions to accomplish "
-            "a goal. This demo makes that visible by showing each tool choice and "
-            "what the AI learned from it. Once it answers, you can keep the conversation going with follow-up requests."
-        )
+        render_agent_console(profile, api_key, model)
 
-    if run_clicked:
-        if not selected_tools:
-            st.warning("Select at least one tool so the agent has something it can use.")
-            return
-        if not (api_key or os.getenv("OPENAI_API_KEY")):
-            st.warning("Add an OpenAI API key to run the agent.")
-            return
-        run_turn(goal, selected_tools, api_key, model, hotel_location)
-
-    latest_run = st.session_state.agent_runs[-1] if st.session_state.agent_runs else None
-    if latest_run:
-        if latest_run.get("mode_used"):
-            st.caption(f"Mode used: {latest_run['mode_used']}")
-        if latest_run.get("warning"):
-            st.warning(latest_run["warning"])
-
-    render_conversation(st.session_state.conversation)
-
-    follow_up = st.chat_input("Ask a follow-up to refine the plan")
-    if follow_up:
-        if not selected_tools:
-            st.warning("Select at least one tool so the agent has something it can use.")
-            return
-        if not (api_key or os.getenv("OPENAI_API_KEY")):
-            st.warning("Add an OpenAI API key to run the agent.")
-            return
-        run_turn(follow_up, selected_tools, api_key, model, hotel_location)
-        st.rerun()
-
-    render_activity(st.session_state.agent_runs)
-    if latest_run:
-        render_final_answer(latest_run["final"])
+    render_agent_monitor(profile, api_key, model)
+    render_participant_slots(st.session_state.visible_agent_posts, current_profile())
+    render_posts(st.session_state.visible_agent_posts)
 
 
 if __name__ == "__main__":

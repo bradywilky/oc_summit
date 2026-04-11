@@ -4,7 +4,7 @@ import json
 import os
 import re
 import ssl
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote_plus, urlencode
@@ -25,9 +25,14 @@ DALLAS_LONGITUDE = -96.7970
 DEFAULT_HOTEL_LOCATION = "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201"
 DEFAULT_DISCORD_MESSAGE = "Discord placeholder message from Agent Lab. Replace this after setup."
 AGENT_POSTS_FILE = DATA_DIR / "agent_posts.json"
+AGENT_MESSAGES_FILE = DATA_DIR / "agent_messages.json"
 AGENT_LAB_POST_MARKER = "[AGENT_LAB_POST]"
 AGENT_LAB_COLLAB_MARKER = "[AGENT_LAB_COLLAB]"
+AGENT_LAB_DISCUSSION_MARKER = "[AGENT_LAB_DISCUSSION]"
+AGENT_LAB_PROPOSAL_MARKER = "[AGENT_LAB_PROPOSAL]"
 MAX_DISCORD_MESSAGE_LENGTH = 1900
+DEFAULT_LISTEN_WINDOW_MINUTES = 30
+NEGOTIATION_MESSAGE_COOLDOWN_SECONDS = 45
 
 
 def _load_json(filename: str) -> list[dict]:
@@ -938,10 +943,85 @@ def _write_local_agent_post(post: dict) -> None:
         json.dump({"posts": posts[-25:]}, file, indent=2)
 
 
+def _read_local_agent_messages() -> list[dict]:
+    if not AGENT_MESSAGES_FILE.exists():
+        return []
+
+    try:
+        with AGENT_MESSAGES_FILE.open(encoding="utf-8") as file:
+            payload = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    messages = payload.get("messages", []) if isinstance(payload, dict) else []
+    return messages if isinstance(messages, list) else []
+
+
+def _write_local_agent_message(message: dict) -> None:
+    AGENT_MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    messages = _read_local_agent_messages()
+    messages.append(message)
+    messages = sorted(messages, key=lambda item: item.get("sent_at", ""))
+    with AGENT_MESSAGES_FILE.open("w", encoding="utf-8") as file:
+        json.dump({"messages": messages[-100:]}, file, indent=2)
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    if not value or not isinstance(value, str):
+        return None
+
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_recent_post(post: dict, cutoff: datetime | None) -> bool:
+    if cutoff is None:
+        return True
+
+    timestamp = _parse_timestamp(post.get("discord_timestamp")) or _parse_timestamp(post.get("posted_at"))
+    if timestamp is None:
+        return False
+    return timestamp >= cutoff
+
+
 def _truncate_for_discord(message: str) -> str:
     if len(message) <= MAX_DISCORD_MESSAGE_LENGTH:
         return message
     return message[: MAX_DISCORD_MESSAGE_LENGTH - 3].rstrip() + "..."
+
+
+def _extract_json_payload(content: str) -> dict:
+    if not isinstance(content, str):
+        return {}
+    json_match = re.search(r"```json\s*(\{.*?\})\s*```", content, flags=re.DOTALL)
+    if not json_match:
+        return {}
+    try:
+        payload = json.loads(json_match.group(1))
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _build_structured_agent_message(marker: str, title: str, summary: str, payload: dict, lines: list[str]) -> str:
+    body_lines = [f"{marker} **{title}**", summary]
+    body_lines.extend(line for line in lines if line)
+    structured = json.dumps(payload, ensure_ascii=False)
+    body = "\n".join(line for line in body_lines if line)
+    return _truncate_for_discord(f"{body}\n```json\n{structured}\n```")
 
 
 def build_agent_intent_message(profile: dict, goal: str) -> str:
@@ -969,19 +1049,29 @@ def _parse_agent_lab_post(message: dict) -> dict | None:
     if AGENT_LAB_POST_MARKER not in content:
         return None
 
-    json_match = re.search(r"```json\s*(\{.*?\})\s*```", content, flags=re.DOTALL)
-    if json_match:
-        try:
-            payload = json.loads(json_match.group(1))
-        except json.JSONDecodeError:
-            payload = {}
-    else:
-        payload = {}
-
+    payload = _extract_json_payload(content)
     if not payload:
         return None
 
     author = message.get("author", {}) if isinstance(message.get("author"), dict) else {}
+    payload["discord_message_id"] = message.get("id")
+    payload["discord_author"] = author.get("username")
+    payload["discord_timestamp"] = message.get("timestamp")
+    payload["source"] = "discord"
+    return payload
+
+
+def _parse_agent_lab_message(message: dict, marker: str) -> dict | None:
+    content = message.get("content", "")
+    if marker not in content:
+        return None
+
+    payload = _extract_json_payload(content)
+    if not payload:
+        return None
+
+    author = message.get("author", {}) if isinstance(message.get("author"), dict) else {}
+    payload["marker"] = marker
     payload["discord_message_id"] = message.get("id")
     payload["discord_author"] = author.get("username")
     payload["discord_timestamp"] = message.get("timestamp")
@@ -1012,7 +1102,11 @@ def publish_agent_post(profile: dict, goal: str) -> dict:
     }
 
 
-def listen_for_agent_posts(current_participant_id: str | None = None, limit: int = 50) -> dict:
+def listen_for_agent_posts(
+    current_participant_id: str | None = None,
+    limit: int = 50,
+    max_age_minutes: int | None = DEFAULT_LISTEN_WINDOW_MINUTES,
+) -> dict:
     discord_result = _fetch_discord_messages(limit)
     posts = []
     if discord_result.get("messages"):
@@ -1023,6 +1117,11 @@ def listen_for_agent_posts(current_participant_id: str | None = None, limit: int
 
     if not posts:
         posts = _read_local_agent_posts()
+
+    cutoff = None
+    if isinstance(max_age_minutes, int) and max_age_minutes > 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+        posts = [post for post in posts if _is_recent_post(post, cutoff)]
 
     if current_participant_id:
         posts = [post for post in posts if post.get("participant_id") != current_participant_id]
@@ -1042,7 +1141,185 @@ def listen_for_agent_posts(current_participant_id: str | None = None, limit: int
         "posts": sorted_posts[:limit],
         "discord": discord_result,
         "source": "discord" if discord_result.get("fetched") and sorted_posts else "local",
+        "max_age_minutes": max_age_minutes,
     }
+
+
+def _message_targets_participant(message: dict, participant_id: str | None) -> bool:
+    if not participant_id:
+        return True
+    target_ids = message.get("target_participant_ids") or []
+    if not target_ids:
+        return True
+    return participant_id in target_ids
+
+
+def _message_timestamp_value(message: dict) -> str:
+    return message.get("discord_timestamp") or message.get("sent_at") or ""
+
+
+def listen_for_agent_messages(
+    current_participant_id: str | None = None,
+    limit: int = 100,
+    max_age_minutes: int | None = DEFAULT_LISTEN_WINDOW_MINUTES,
+) -> dict:
+    discord_result = _fetch_discord_messages(limit)
+    messages = []
+    if discord_result.get("messages"):
+        for discord_message in discord_result["messages"]:
+            for marker in (AGENT_LAB_DISCUSSION_MARKER, AGENT_LAB_PROPOSAL_MARKER):
+                parsed = _parse_agent_lab_message(discord_message, marker)
+                if parsed:
+                    messages.append(parsed)
+
+    if not messages:
+        local_messages = _read_local_agent_messages()
+        messages = [item for item in local_messages if item.get("marker") in {AGENT_LAB_DISCUSSION_MARKER, AGENT_LAB_PROPOSAL_MARKER}]
+
+    cutoff = None
+    if isinstance(max_age_minutes, int) and max_age_minutes > 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+        messages = [message for message in messages if _is_recent_post(message, cutoff)]
+
+    if current_participant_id:
+        messages = [
+            message
+            for message in messages
+            if message.get("sender_participant_id") == current_participant_id
+            or _message_targets_participant(message, current_participant_id)
+        ]
+
+    sorted_messages = sorted(messages, key=_message_timestamp_value, reverse=True)
+    return {
+        "messages": sorted_messages[:limit],
+        "discord": discord_result,
+        "source": "discord" if discord_result.get("fetched") and sorted_messages else "local",
+        "max_age_minutes": max_age_minutes,
+    }
+
+
+def _participant_key(post: dict) -> str:
+    return str(post.get("participant_id") or post.get("discord_message_id") or post.get("name", "")).strip()
+
+
+def _group_signature(profile: dict, collaborators: list[dict]) -> str:
+    participant_ids = [_participant_key(profile)]
+    participant_ids.extend(_participant_key(post) for post in collaborators)
+    normalized = sorted(participant_id for participant_id in participant_ids if participant_id)
+    return "|".join(normalized)
+
+
+def _names_from_posts(posts: list[dict]) -> list[str]:
+    return [post.get("name", "another participant") for post in posts if isinstance(post, dict)]
+
+
+def _derive_human_follow_up_questions(profile: dict, incoming_messages: list[dict]) -> list[str]:
+    questions: list[str] = []
+    if not profile.get("restaurant_preferences", "").strip():
+        questions.append("What dietary, budget, or vibe constraints should I represent before I lock in a group dinner?")
+
+    for message in incoming_messages:
+        for question in message.get("questions") or []:
+            if question and question not in questions:
+                questions.append(question)
+    return questions[:3]
+
+
+def _discussion_lines(collaboration: dict, target_names: list[str]) -> list[str]:
+    restaurants = collaboration.get("restaurants") or []
+    events = collaboration.get("events") or []
+    lines = [f"Looping in: {', '.join(target_names)}" if target_names else ""]
+    if restaurants:
+        lines.append(f"Best dinner candidate so far: {_restaurant_line(restaurants[0])}")
+    if events:
+        lines.append(f"Optional next stop: {_event_line(events[0])}")
+    return lines
+
+
+def _proposal_lines(collaboration: dict, target_names: list[str]) -> list[str]:
+    lines = [f"Potential group: {', '.join(target_names)}" if target_names else ""]
+    for step in (collaboration.get("next_steps") or [])[:3]:
+        lines.append(f"- {step}")
+    return lines
+
+
+def _build_agent_discussion_payload(
+    profile: dict,
+    collaboration: dict,
+    collaborators: list[dict],
+    questions: list[str] | None = None,
+    status: str = "discussion",
+) -> dict:
+    restaurants = collaboration.get("restaurants") or []
+    events = collaboration.get("events") or []
+    return {
+        "sender_participant_id": profile.get("participant_id", ""),
+        "sender_name": profile.get("name", "Anonymous"),
+        "target_participant_ids": [_participant_key(post) for post in collaborators if _participant_key(post)],
+        "target_names": _names_from_posts(collaborators),
+        "group_signature": _group_signature(profile, collaborators),
+        "summary": collaboration.get("summary", ""),
+        "questions": questions or [],
+        "next_steps": (collaboration.get("next_steps") or [])[:3],
+        "restaurants": [restaurant.get("name", "Dinner option") for restaurant in restaurants[:2]],
+        "events": [event.get("name", "After-dinner option") for event in events[:2]],
+        "status": status,
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def build_agent_discussion_message(profile: dict, collaboration: dict, collaborators: list[dict], questions: list[str] | None = None) -> str:
+    payload = _build_agent_discussion_payload(profile, collaboration, collaborators, questions=questions, status="discussion")
+    lines = _discussion_lines(collaboration, payload.get("target_names", []))
+    if payload["questions"]:
+        lines.append("Questions for agents to check with their humans:")
+        lines.extend(f"- {question}" for question in payload["questions"][:3])
+    return _build_structured_agent_message(
+        AGENT_LAB_DISCUSSION_MARKER,
+        f"{profile.get('name', 'An agent')} is comparing notes with other agents.",
+        collaboration.get("summary", "I found a few possible collaborators and want to pressure-test a plan."),
+        payload,
+        lines,
+    )
+
+
+def build_agent_proposal_message(profile: dict, collaboration: dict, collaborators: list[dict]) -> str:
+    payload = _build_agent_discussion_payload(profile, collaboration, collaborators, questions=None, status="proposal")
+    return _build_structured_agent_message(
+        AGENT_LAB_PROPOSAL_MARKER,
+        f"{profile.get('name', 'An agent')} has a draft plan ready for human approval.",
+        collaboration.get("summary", "A possible group plan is ready."),
+        payload,
+        _proposal_lines(collaboration, payload.get("target_names", [])),
+    )
+
+
+def _store_agent_message_locally(profile: dict, message: str, marker: str) -> dict:
+    payload = _extract_json_payload(message)
+    local_message = {
+        **payload,
+        "marker": marker,
+        "sender_participant_id": profile.get("participant_id", ""),
+        "sender_name": profile.get("name", "Anonymous"),
+        "sent_at": payload.get("sent_at") or datetime.now(timezone.utc).isoformat(),
+        "source": "local",
+    }
+    _write_local_agent_message(local_message)
+    return local_message
+
+
+def post_agent_discussion_message(profile: dict, collaboration: dict, collaborators: list[dict], questions: list[str] | None = None) -> dict:
+    message = build_agent_discussion_message(profile, collaboration, collaborators, questions=questions)
+    discord_result = _send_discord_message(message)
+    local_message = _store_agent_message_locally(profile, message, AGENT_LAB_DISCUSSION_MARKER)
+    return {"sent": True, "discord": discord_result, "local_message": local_message, "message_preview": message}
+
+
+def post_agent_proposal_message(profile: dict, collaboration: dict, collaborators: list[dict]) -> dict:
+    message = build_agent_proposal_message(profile, collaboration, collaborators)
+    discord_result = _send_discord_message(message)
+    local_message = _store_agent_message_locally(profile, message, AGENT_LAB_PROPOSAL_MARKER)
+    return {"sent": True, "discord": discord_result, "local_message": local_message, "message_preview": message}
 
 
 def _overlap_score(profile: dict, post: dict) -> int:
@@ -1086,12 +1363,107 @@ def _deterministic_collaboration(profile: dict, posts: list[dict]) -> dict:
     }
 
 
+def _collaboration_goal(profile: dict, collaborators: list[dict]) -> str:
+    goals = [profile.get("goal", "")]
+    goals.extend(post.get("goal", "") for post in collaborators)
+    preferences = [profile.get("restaurant_preferences", "")]
+    preferences.extend(post.get("restaurant_preferences", "") for post in collaborators)
+    return (
+        "Coordinate a Dallas dinner plan for conference attendees. "
+        f"Goals: {' | '.join(item for item in goals if item)}. "
+        f"Restaurant preferences: {' | '.join(item for item in preferences if item)}."
+    )
+
+
+def _build_collaboration_venue_plan(profile: dict, collaborators: list[dict], context: dict | None = None) -> dict:
+    goal = _collaboration_goal(profile, collaborators)
+    tool_context = {"hotel_location": (context or {}).get("hotel_location") or DEFAULT_HOTEL_LOCATION}
+    restaurants = restaurant_finder(goal, [], tool_context)
+    events = event_finder(goal, [], tool_context)
+    ranked_restaurants = sorted(
+        restaurants.get("restaurants", []),
+        key=lambda item: (
+            item.get("price_level", 9) > 2,
+            not item.get("good_for_groups", False),
+            item.get("walk_minutes", 999),
+            item.get("price_level", 9),
+        ),
+    )
+    return {
+        "restaurants": ranked_restaurants[:3],
+        "restaurant_source": restaurants.get("source", "Unknown source"),
+        "restaurant_search_center": restaurants.get("search_center", tool_context["hotel_location"]),
+        "restaurant_live": restaurants.get("live", False),
+        "restaurant_error": restaurants.get("error"),
+        "events": events.get("events", [])[:3],
+        "event_source": events.get("source", "Unknown source"),
+        "event_search_center": events.get("search_center", tool_context["hotel_location"]),
+        "event_live": events.get("live", False),
+        "event_error": events.get("error"),
+    }
+
+
+def _restaurant_line(restaurant: dict) -> str:
+    details = [
+        restaurant.get("cuisine", "Restaurant"),
+        restaurant.get("estimated_cost", "cost TBD"),
+        f"{restaurant.get('walk_minutes', '?')} min walk",
+    ]
+    return f"{restaurant.get('name', 'Dinner option')} ({', '.join(details)})"
+
+
+def _event_line(event: dict) -> str:
+    details = [event.get("time"), event.get("venue_type") or event.get("type"), event.get("address")]
+    detail_text = ", ".join(str(item) for item in details if item)
+    if detail_text:
+        return f"{event.get('name', 'After-dinner option')} ({detail_text})"
+    return event.get("name", "After-dinner option")
+
+
+def _build_group_message(profile: dict, collaboration: dict) -> str:
+    collaborators = collaboration.get("collaborators") or []
+    names = [profile.get("name", "An agent")]
+    for collaborator in collaborators:
+        if isinstance(collaborator, dict):
+            names.append(collaborator.get("name", "another participant"))
+        else:
+            names.append(str(collaborator))
+
+    lines = [
+        f"{AGENT_LAB_COLLAB_MARKER} **{profile.get('name', 'An agent')} found a possible dinner group.**",
+        collaboration.get("summary", "A few participants may be good collaborators."),
+        f"Group: {', '.join(name for name in names if name)}",
+    ]
+
+    restaurants = collaboration.get("restaurants") or []
+    if restaurants:
+        lines.append("Dinner options:")
+        for restaurant in restaurants[:2]:
+            lines.append(f"- {_restaurant_line(restaurant)}")
+
+    events = collaboration.get("events") or []
+    if events:
+        lines.append("After-dinner options:")
+        for event in events[:2]:
+            lines.append(f"- {_event_line(event)}")
+
+    next_steps = collaboration.get("next_steps") or []
+    if next_steps:
+        lines.append("Next steps:")
+        for step in next_steps[:3]:
+            lines.append(f"- {step}")
+
+    return _truncate_for_discord("\n".join(lines))
+
+
 def synthesize_agent_collaboration(profile: dict, posts: list[dict], context: dict | None = None) -> dict:
     api_key = (context or {}).get("openai_api_key") or os.getenv("OPENAI_API_KEY")
     model = (context or {}).get("openai_model") or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     base = _deterministic_collaboration(profile, posts)
+    venue_plan = _build_collaboration_venue_plan(profile, base.get("collaborators", []), context)
     if not api_key or not posts:
-        return {**base, "mode": "deterministic"}
+        collaboration = {**base, **venue_plan, "mode": "deterministic"}
+        return {**collaboration, "group_message": _build_group_message(profile, collaboration)}
 
     client = OpenAI(api_key=api_key)
     try:
@@ -1099,37 +1471,155 @@ def synthesize_agent_collaboration(profile: dict, posts: list[dict], context: di
             model=model,
             instructions=(
                 "You are coordinating conference attendee agents. "
-                "Use only the provided participant posts. "
+                "Use only the provided participant posts and venue options. "
                 "Return JSON only with this shape: "
                 '{"summary":"short recommendation","collaborators":[{"name":"name","reason":"why"}],"next_steps":["step"]}. '
-                "Prefer concrete, friendly collaboration steps that can be posted back to Discord."
+                "Prefer concrete, friendly collaboration steps that mention the best dinner and after-dinner option names."
             ),
             input=(
                 f"Current participant:\n{json.dumps(profile, indent=2)}\n\n"
-                f"Visible agent posts:\n{json.dumps(posts[:10], indent=2)}"
+                f"Visible agent posts:\n{json.dumps(posts[:10], indent=2)}\n\n"
+                f"Venue options:\n{json.dumps(venue_plan, indent=2)}"
             ),
         )
         payload = _coerce_json(response.output_text)
     except Exception:
-        return {**base, "mode": "deterministic fallback"}
+        collaboration = {**base, **venue_plan, "mode": "deterministic fallback"}
+        return {**collaboration, "group_message": _build_group_message(profile, collaboration)}
 
-    return {
+    collaboration = {
         "summary": payload.get("summary") or base["summary"],
         "collaborators": payload.get("collaborators") or base["collaborators"],
         "next_steps": payload.get("next_steps") or base["next_steps"],
+        **venue_plan,
         "mode": "LLM Mode",
+    }
+    return {**collaboration, "group_message": _build_group_message(profile, collaboration)}
+
+
+def _recent_outbound_message(messages: list[dict], sender_participant_id: str, marker: str, group_signature: str) -> dict | None:
+    for message in messages:
+        if (
+            message.get("sender_participant_id") == sender_participant_id
+            and message.get("marker") == marker
+            and message.get("group_signature") == group_signature
+        ):
+            return message
+    return None
+
+
+def _is_within_cooldown(message: dict | None, cooldown_seconds: int = NEGOTIATION_MESSAGE_COOLDOWN_SECONDS) -> bool:
+    if not message:
+        return False
+    timestamp = _parse_timestamp(message.get("discord_timestamp")) or _parse_timestamp(message.get("sent_at"))
+    if timestamp is None:
+        return False
+    return (datetime.now(timezone.utc) - timestamp).total_seconds() < cooldown_seconds
+
+
+def _message_is_relevant_to_group(message: dict, current_participant_id: str, collaborator_ids: set[str], group_signature: str) -> bool:
+    if message.get("group_signature") != group_signature:
+        return False
+    if message.get("sender_participant_id") == current_participant_id:
+        return True
+
+    target_ids = set(message.get("target_participant_ids") or [])
+    if not target_ids:
+        return True
+    return current_participant_id in target_ids or bool(target_ids & collaborator_ids)
+
+
+def run_agent_negotiation_cycle(profile: dict, context: dict | None = None, state: dict | None = None) -> dict:
+    previous_state = dict(state or {})
+    posts_result = listen_for_agent_posts(profile.get("participant_id"))
+    visible_posts = posts_result.get("posts", [])
+    ranked_posts = sorted(visible_posts, key=lambda post: _overlap_score(profile, post), reverse=True)
+    collaborators = ranked_posts[:3]
+
+    message_result = listen_for_agent_messages(profile.get("participant_id"))
+    all_messages = message_result.get("messages", [])
+
+    if not collaborators:
+        return {
+            "status": "waiting_for_agents",
+            "summary": "Your agent is monitoring the channel and waiting for another participant agent to appear.",
+            "visible_agent_posts": visible_posts,
+            "discussion_messages": [],
+            "collaboration": None,
+            "candidate_plan": None,
+            "follow_up_questions": [],
+            "activity": ["Monitoring the channel for a compatible collaborator."],
+            "state": {"status": "waiting_for_agents"},
+            "listen_result": posts_result,
+            "message_result": message_result,
+        }
+
+    collaboration = synthesize_agent_collaboration(profile, collaborators, context=context)
+    group_signature = _group_signature(profile, collaborators)
+    collaborator_ids = {_participant_key(post) for post in collaborators if _participant_key(post)}
+    relevant_messages = [
+        message
+        for message in all_messages
+        if _message_is_relevant_to_group(message, profile.get("participant_id", ""), collaborator_ids, group_signature)
+    ]
+    incoming_messages = [
+        message for message in relevant_messages if message.get("sender_participant_id") != profile.get("participant_id")
+    ]
+    follow_up_questions = _derive_human_follow_up_questions(profile, incoming_messages)
+    activity: list[str] = [f"Tracking a possible group with {', '.join(_names_from_posts(collaborators))}."]
+
+    should_force_round = bool(previous_state.get("force_new_round"))
+    recent_discussion = _recent_outbound_message(
+        relevant_messages,
+        profile.get("participant_id", ""),
+        AGENT_LAB_DISCUSSION_MARKER,
+        group_signature,
+    )
+    if should_force_round or not _is_within_cooldown(recent_discussion):
+        outbound_questions = [
+            "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+        ]
+        discussion_post = post_agent_discussion_message(profile, collaboration, collaborators, questions=outbound_questions)
+        activity.append("Posted a discussion update so the other agents can compare constraints and preferences.")
+        relevant_messages = [discussion_post["local_message"], *relevant_messages]
+
+    proposal_ready = bool(incoming_messages) or len(collaborators) >= 2
+    status = "monitoring"
+    candidate_plan = None
+    summary = "Your agent is still discussing options with nearby agents."
+
+    if follow_up_questions:
+        status = "needs_human_input"
+        summary = "Another agent needs a little more information before this group can lock a plan."
+    elif proposal_ready:
+        status = "proposal_ready"
+        summary = "The agents have enough overlap to bring you a draft plan for approval."
+        candidate_plan = collaboration
+    else:
+        activity.append("Waiting for at least one other agent to respond before surfacing a plan.")
+
+    return {
+        "status": status,
+        "summary": summary,
+        "visible_agent_posts": visible_posts,
+        "discussion_messages": relevant_messages[:8],
+        "collaboration": collaboration,
+        "candidate_plan": candidate_plan,
+        "follow_up_questions": follow_up_questions,
+        "activity": activity,
+        "state": {
+            "status": status,
+            "group_signature": group_signature,
+            "force_new_round": False,
+        },
+        "listen_result": posts_result,
+        "message_result": message_result,
     }
 
 
 def post_collaboration_reply(profile: dict, collaboration: dict) -> dict:
-    lines = [
-        f"{AGENT_LAB_COLLAB_MARKER} **{profile.get('name', 'An agent')} found a possible dinner group.**",
-        collaboration.get("summary", "A few participants may be good collaborators."),
-    ]
-    next_steps = collaboration.get("next_steps") or []
-    for step in next_steps[:3]:
-        lines.append(f"- {step}")
-    return _send_discord_message(_truncate_for_discord("\n".join(lines)))
+    message = collaboration.get("group_message") or _build_group_message(profile, collaboration)
+    return _send_discord_message(message)
 
 
 def discord_message_sender(goal: str, history: list[dict], context: dict | None = None) -> dict:

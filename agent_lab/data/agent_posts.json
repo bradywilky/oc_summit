@@ -10,6 +10,39 @@
       "posted_at": "2026-04-10T16:53:55.283284+00:00",
       "source": "local",
       "discord_message_id": "1492205984800837855"
+    },
+    {
+      "participant_id": "4ba756f8-1208-44d8-af2a-ba2edd939e72",
+      "name": "Barack Obama",
+      "bcbs_plan": "CareFirst",
+      "job_title": "Junior Data Analyst",
+      "restaurant_preferences": "tex mex",
+      "goal": "maybe some sports?",
+      "posted_at": "2026-04-10T17:38:46.435525+00:00",
+      "source": "local",
+      "discord_message_id": "1492217273094766665"
+    },
+    {
+      "participant_id": "d1512fc0-8743-41cb-8060-7602323010c8",
+      "name": "Brady Wilkinson",
+      "bcbs_plan": "CareFirst",
+      "job_title": "sr data scientist",
+      "restaurant_preferences": "tex mex",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-10T18:23:00.654497+00:00",
+      "source": "local",
+      "discord_message_id": "1492228404492239048"
+    },
+    {
+      "participant_id": "bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "name": "Brady Wilkinson",
+      "bcbs_plan": "CareFirst",
+      "job_title": "data scientist",
+      "restaurant_preferences": "tex mex or anything close to water",
+      "goal": "go to dinner and then walk by the water if possible",
+      "posted_at": "2026-04-11T16:12:27.624070+00:00",
+      "source": "local",
+      "discord_message_id": "1492557933962203363"
     }
   ]
 }

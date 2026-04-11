@@ -111,7 +111,7 @@
 
     .diagram {
       display: grid;
-      grid-template-columns: minmax(110px, 0.75fr) minmax(160px, 1fr) minmax(260px, 2fr) minmax(180px, 1fr) minmax(140px, 0.85fr);
+      grid-template-columns: minmax(110px, 0.75fr) minmax(160px, 1fr) minmax(260px, 1.8fr) minmax(240px, 1.5fr) minmax(140px, 0.85fr);
       gap: 12px;
       align-items: stretch;
     }
@@ -226,6 +226,66 @@
       line-height: 1.3;
     }
 
+    .rag-results {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .rag-answer {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .rag-answer[open] {
+      border-color: var(--green);
+    }
+
+    .rag-answer summary {
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: bold;
+      list-style: none;
+    }
+
+    .rag-answer summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .rag-answer summary::after {
+      content: "Expand";
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+
+    .rag-answer[open] summary::after {
+      content: "Collapse";
+    }
+
+    .rag-answer.running summary::after {
+      content: "Running";
+      color: var(--muted);
+    }
+
+    .rag-answer-body {
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      padding: 9px 10px 10px;
+    }
+
     .timeline {
       display: grid;
       gap: 10px;
@@ -321,6 +381,21 @@
       margin-top: 12px;
     }
 
+    .control-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .control-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    select,
     input[type="text"] {
       flex: 1;
       padding: 12px;
@@ -328,6 +403,20 @@
       border-radius: 8px;
       font-size: 14px;
       min-width: 0;
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    .question-picker {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .question-picker label {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
     }
 
     button {
@@ -431,6 +520,7 @@
           <div class="stage" id="stage-rag">
             <div class="stage-title">RAG Answers</div>
             <div class="stage-copy" id="ragStageCopy">Waiting for yes decisions.</div>
+            <div class="rag-results" id="ragResults"></div>
           </div>
 
           <div class="stage" id="stage-summary">
@@ -460,6 +550,11 @@
           </div>
         </div>
 
+        <div class="question-picker">
+          <label for="questionSelect">Example questions</label>
+          <select id="questionSelect"></select>
+        </div>
+
         <div class="input-row">
           <input
             type="text"
@@ -468,6 +563,13 @@
             placeholder="Ask Compass a question..."
           />
           <button id="runBtn">Run Router</button>
+        </div>
+
+        <div class="control-row">
+          <button id="continueBtn" disabled>Continue to RAG</button>
+          <div class="control-note" id="controlNote">
+            Run the router first. Then continue when you are ready to show RAG and summarization.
+          </div>
         </div>
       </section>
     </main>
@@ -516,10 +618,54 @@
     const routerGrid = document.getElementById("routerGrid");
     const timeline = document.getElementById("timeline");
     const chatWindow = document.getElementById("chatWindow");
+    const questionSelect = document.getElementById("questionSelect");
     const questionInput = document.getElementById("questionInput");
     const runBtn = document.getElementById("runBtn");
+    const continueBtn = document.getElementById("continueBtn");
+    const controlNote = document.getElementById("controlNote");
     const proofText = document.getElementById("proofText");
     const ragStageCopy = document.getElementById("ragStageCopy");
+    const ragResults = document.getElementById("ragResults");
+    let pendingRouterResults = [];
+    let pendingRagAnswers = [];
+    let selectedQuestion = null;
+    let exampleQuestions = [];
+    let nextStep = "rag";
+    let currentRunId = 0;
+
+    const fallbackExampleQuestions = [
+      {
+        id: "fvii-bpm-apim",
+        question: "Which BPM handoff and APIM access rules apply to this FVII exception?",
+        knowledgeBases: ["fvii", "bpm", "apim"],
+        individualAnswers: {
+          fvii: "FVII says this exception should be logged against the request, include the required Form VII fields, and show the approval reason before the workflow moves forward.",
+          bpm: "BPM says the process owner should confirm the handoff point, document the current step, and make sure the exception does not bypass the mapped approval lane.",
+          apim: "APIM says access should use the approved gateway path with the correct subscription, endpoint, and policy before the exception can call the service."
+        },
+        summaryAnswer: "For this FVII exception, capture the exception and required fields in the FVII workflow, have the BPM owner confirm the handoff and approval lane, and only proceed through the APIM gateway when the subscription, endpoint, and access policy are correct."
+      },
+      {
+        id: "dpc-controls-records",
+        question: "What DPC controls and BB records should be checked before closing this support note?",
+        knowledgeBases: ["dpc", "bb"],
+        individualAnswers: {
+          dpc: "DPC says the relevant operational control should be checked, evidence should be attached, and any gap should be recorded before closure.",
+          bb: "BB says the support record should be reviewed for the latest note, owner, and closure status before a final response is sent."
+        },
+        summaryAnswer: "Before closing the support note, verify the DPC control and attach evidence, then check the BB record for the latest note, owner, and closure status so the final answer is grounded in both control and record data."
+      },
+      {
+        id: "api-owner-handoff",
+        question: "Who owns the API gateway handoff, and what process map should be updated?",
+        knowledgeBases: ["bpm", "apim"],
+        individualAnswers: {
+          bpm: "BPM says the process owner is responsible for the gateway handoff and should update the process map when the owner or handoff step changes.",
+          apim: "APIM says the gateway owner should confirm the endpoint, subscription, and policy details before the handoff is considered complete."
+        },
+        summaryAnswer: "The BPM process owner owns the handoff in the process map, while APIM confirms the gateway endpoint, subscription, and policy. Update the process map when the owner or handoff step changes."
+      }
+    ];
 
     function renderToggles() {
       kbToggles.innerHTML = "";
@@ -577,6 +723,24 @@
       });
     }
 
+    function renderQuestionOptions() {
+      questionSelect.innerHTML = "";
+
+      exampleQuestions.forEach((example) => {
+        const option = document.createElement("option");
+        option.value = example.id;
+        option.textContent = example.question;
+        questionSelect.appendChild(option);
+      });
+
+      selectedQuestion = exampleQuestions[0] || null;
+
+      if (selectedQuestion) {
+        questionSelect.value = selectedQuestion.id;
+        questionInput.value = selectedQuestion.question;
+      }
+    }
+
     function setStage(id, state) {
       const stage = document.getElementById(id);
       stage.classList.remove("active", "done");
@@ -622,6 +786,10 @@
     }
 
     function decideRelevance(kb, question) {
+      if (selectedQuestion && selectedQuestion.question === question) {
+        return selectedQuestion.knowledgeBases.includes(kb.id);
+      }
+
       const lowerQuestion = question.toLowerCase();
       return kb.keywords.some((keyword) => lowerQuestion.includes(keyword));
     }
@@ -638,10 +806,137 @@
       setBar("rag", 0);
       setBar("summary", 0);
       ragStageCopy.textContent = "Waiting for yes decisions.";
+      ragResults.innerHTML = "";
+      continueBtn.disabled = true;
+      continueBtn.textContent = "Continue to RAG";
+      controlNote.textContent = "Run the router first. Then continue when you are ready to show RAG and summarization.";
+      pendingRouterResults = [];
+      pendingRagAnswers = [];
+      nextStep = "rag";
+    }
+
+    function addRagAnswer(kb, state, answer) {
+      const details = document.createElement("details");
+      details.className = `rag-answer ${state}`;
+      details.id = `rag-answer-${kb.id}`;
+      details.innerHTML = `
+        <summary>${kb.name}</summary>
+        <div class="rag-answer-body">${answer}</div>
+      `;
+      ragResults.appendChild(details);
+    }
+
+    function updateRagAnswer(kb, answer) {
+      const details = document.getElementById(`rag-answer-${kb.id}`);
+
+      if (!details) {
+        return;
+      }
+
+      details.className = "rag-answer";
+      details.open = true;
+      details.querySelector(".rag-answer-body").textContent = answer;
+    }
+
+    async function runRagAnswers(runId) {
+      const selected = pendingRouterResults.filter((result) => result.relevant);
+      const skipped = pendingRouterResults.filter((result) => !result.relevant);
+
+      if (runId !== currentRunId || pendingRouterResults.length === 0) {
+        return;
+      }
+
+      continueBtn.disabled = true;
+      controlNote.textContent = "Running RAG for each yes knowledge base.";
+
+      if (selected.length === 0) {
+        setStage("stage-rag", "done");
+        setStage("stage-summary", "done");
+        setBar("rag", 100, "skipped");
+        setBar("summary", 100, "done");
+        ragStageCopy.textContent = "No selected sources.";
+        appendMessage("None of the enabled knowledge bases look relevant, so Compass can ask a clarifying question instead of forcing an answer.", "bot");
+        runBtn.disabled = false;
+        continueBtn.textContent = "Continue to RAG";
+        controlNote.textContent = "No RAG calls were needed because every router decision was no.";
+        return;
+      }
+
+      setStage("stage-rag", "active");
+      ragStageCopy.textContent = `Running RAG for ${selected.map((result) => result.kb.name).join(", ")}.`;
+      ragResults.innerHTML = "";
+      setBar("rag", 16);
+      appendMessage(`Running full RAG for: ${selected.map((result) => result.kb.name).join(", ")}.`, "system");
+
+      selected.forEach((result) => {
+        addRagAnswer(result.kb, "running", "Retrieving documents and generating an answer.");
+      });
+
+      pendingRagAnswers = [];
+      for (let index = 0; index < selected.length; index += 1) {
+        await wait(1100);
+
+        if (runId !== currentRunId) {
+          return;
+        }
+
+        const answer = selectedQuestion?.individualAnswers?.[selected[index].kb.id] || selected[index].kb.answer;
+        pendingRagAnswers.push(answer);
+        updateRagAnswer(selected[index].kb, answer);
+        setBar("rag", Math.round(((index + 1) / selected.length) * 100), index + 1 === selected.length ? "done" : "");
+      }
+
+      setStage("stage-rag", "done");
+      ragStageCopy.textContent = "Each selected knowledge base returned an individual answer.";
+      continueBtn.disabled = false;
+      continueBtn.textContent = "Continue to Summary";
+      nextStep = "summary";
+      controlNote.textContent = "RAG answers are ready. Click Continue to Summary when you are ready to combine them.";
+    }
+
+    async function runSummarizer(runId) {
+      const selected = pendingRouterResults.filter((result) => result.relevant);
+      const skipped = pendingRouterResults.filter((result) => !result.relevant);
+
+      if (runId !== currentRunId || pendingRagAnswers.length === 0) {
+        return;
+      }
+
+      continueBtn.disabled = true;
+      setStage("stage-summary", "active");
+      setBar("summary", 28);
+      controlNote.textContent = "Summarizer is combining the selected answers.";
+      appendMessage("Summarizer started. Compass is combining the selected RAG answers into one response.", "system");
+
+      await wait(1400);
+
+      if (runId !== currentRunId) {
+        return;
+      }
+
+      setBar("summary", 100, "done");
+      setStage("stage-summary", "done");
+
+      const selectedKbIds = selected.map((result) => result.kb.id);
+      const selectedMatchesQuestion = selectedQuestion
+        && selectedQuestion.knowledgeBases.length === selectedKbIds.length
+        && selectedQuestion.knowledgeBases.every((kbId) => selectedKbIds.includes(kbId));
+      const summaryAnswer = selectedMatchesQuestion
+        ? selectedQuestion.summaryAnswer
+        : `${pendingRagAnswers.join(" ")} The summarizer removes source-by-source repetition and gives the user one response.`;
+      appendMessage(`Final answer: ${summaryAnswer}`, "bot");
+
+      proofText.textContent = "The important visual is the fan-out/fan-in shape: cheap yes/no router calls run in parallel, irrelevant sources stop early, relevant sources perform RAG, and the summarizer turns multiple grounded answers into one Compass answer.";
+      runBtn.disabled = false;
+      continueBtn.textContent = "Continue to RAG";
+      nextStep = "rag";
+      controlNote.textContent = `Complete. ${selected.length} source${selected.length === 1 ? "" : "s"} ran RAG; ${skipped.length} stopped after routing.`;
     }
 
     async function runRouter() {
-      const question = questionInput.value.trim() || "Which BPM handoff and APIM access rules apply to this FVII exception?";
+      currentRunId += 1;
+      const runId = currentRunId;
+      const question = questionInput.value.trim() || selectedQuestion?.question || "Which BPM handoff and APIM access rules apply to this FVII exception?";
       const enabledKbs = getEnabledKnowledgeBases();
 
       if (enabledKbs.length === 0) {
@@ -650,7 +945,9 @@
       }
 
       runBtn.disabled = true;
+      continueBtn.disabled = true;
       resetRun();
+      controlNote.textContent = "Router fan-out is running. Wait for every knowledge base to return yes or no.";
 
       appendMessage(question, "user");
       appendMessage("Router started. Compass is asking every enabled knowledge base whether it is relevant.", "system");
@@ -658,11 +955,15 @@
       setStage("stage-question", "done");
       setStage("stage-router", "active");
       setStage("stage-decisions", "active");
-      setBar("router", 18);
+      setBar("router", 14);
 
       const routerResults = await Promise.all(enabledKbs.map(async (kb, index) => {
         setKbState(kb.id, "running", "Running", "LLM is checking instructions, question, and candidate passages.");
-        await wait(700 + index * 250);
+        await wait(1200 + index * 450);
+
+        if (runId !== currentRunId) {
+          return { kb, relevant: false };
+        }
 
         const relevant = decideRelevance(kb, question);
         setKbState(
@@ -676,9 +977,14 @@
         return { kb, relevant };
       }));
 
+      if (runId !== currentRunId) {
+        return;
+      }
+
       const selected = routerResults.filter((result) => result.relevant);
       const skipped = routerResults.filter((result) => !result.relevant);
 
+      pendingRouterResults = routerResults;
       setStage("stage-router", "done");
       setStage("stage-decisions", "done");
 
@@ -687,52 +993,63 @@
         "system"
       );
 
-      if (selected.length === 0) {
-        setStage("stage-rag", "done");
-        setStage("stage-summary", "done");
-        setBar("rag", 100, "skipped");
-        setBar("summary", 100, "done");
-        ragStageCopy.textContent = "No selected sources.";
-        appendMessage("None of the enabled knowledge bases look relevant, so Compass can ask a clarifying question instead of forcing an answer.", "bot");
-        runBtn.disabled = false;
-        return;
+      continueBtn.disabled = false;
+      continueBtn.textContent = "Continue to RAG";
+      nextStep = "rag";
+      controlNote.textContent = `Router paused here: ${selected.length} yes, ${skipped.length} no. Click Continue to RAG when you are ready.`;
+    }
+
+    async function loadExampleQuestions() {
+      try {
+        const response = await fetch("sample_questions.json");
+
+        if (!response.ok) {
+          throw new Error("Sample question file was not available.");
+        }
+
+        exampleQuestions = await response.json();
+      } catch (error) {
+        exampleQuestions = fallbackExampleQuestions;
       }
 
-      setStage("stage-rag", "active");
-      ragStageCopy.textContent = `Running RAG for ${selected.map((result) => result.kb.name).join(", ")}.`;
-      setBar("rag", 20);
-      appendMessage(`Running full RAG for: ${selected.map((result) => result.kb.name).join(", ")}.`, "system");
-
-      const ragAnswers = [];
-      for (let index = 0; index < selected.length; index += 1) {
-        await wait(650);
-        ragAnswers.push(selected[index].kb.answer);
-        setBar("rag", Math.round(((index + 1) / selected.length) * 100), index + 1 === selected.length ? "done" : "");
-      }
-
-      setStage("stage-rag", "done");
-      setStage("stage-summary", "active");
-      setBar("summary", 35);
-      appendMessage("Summarizer started. Compass is combining the selected RAG answers into one response.", "system");
-
-      await wait(800);
-      setBar("summary", 100, "done");
-      setStage("stage-summary", "done");
-
-      appendMessage(
-        `Final answer: ${ragAnswers.join(" ")} The summarizer removes source-by-source repetition and gives the user one response.`,
-        "bot"
-      );
-
-      proofText.textContent = "The important visual is the fan-out/fan-in shape: cheap yes/no router calls run in parallel, irrelevant sources stop early, relevant sources perform RAG, and the summarizer turns multiple grounded answers into one Compass answer.";
-      runBtn.disabled = false;
+      renderQuestionOptions();
+      resetRun();
     }
 
     renderToggles();
-    resetRun();
+    loadExampleQuestions();
 
-    kbToggles.addEventListener("change", resetRun);
+    kbToggles.addEventListener("change", () => {
+      currentRunId += 1;
+      runBtn.disabled = false;
+      resetRun();
+    });
     runBtn.addEventListener("click", runRouter);
+    questionSelect.addEventListener("change", () => {
+      selectedQuestion = exampleQuestions.find((example) => example.id === questionSelect.value) || null;
+
+      if (selectedQuestion) {
+        questionInput.value = selectedQuestion.question;
+      }
+
+      currentRunId += 1;
+      runBtn.disabled = false;
+      resetRun();
+    });
+    questionInput.addEventListener("input", () => {
+      selectedQuestion = exampleQuestions.find((example) => example.question === questionInput.value.trim()) || null;
+
+      if (selectedQuestion) {
+        questionSelect.value = selectedQuestion.id;
+      }
+    });
+    continueBtn.addEventListener("click", () => {
+      if (nextStep === "summary") {
+        runSummarizer(currentRunId);
+      } else {
+        runRagAnswers(currentRunId);
+      }
+    });
   </script>
 </body>
 </html>
