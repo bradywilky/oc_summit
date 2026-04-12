@@ -26,6 +26,7 @@ DEFAULT_HOTEL_LOCATION = "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 7
 DEFAULT_DISCORD_MESSAGE = "Discord placeholder message from Agent Lab. Replace this after setup."
 AGENT_POSTS_FILE = DATA_DIR / "agent_posts.json"
 AGENT_MESSAGES_FILE = DATA_DIR / "agent_messages.json"
+DEV_CONSOLE_STATE_FILE = DATA_DIR / "dev_console_state.json"
 AGENT_LAB_POST_MARKER = "[AGENT_LAB_POST]"
 AGENT_LAB_COLLAB_MARKER = "[AGENT_LAB_COLLAB]"
 AGENT_LAB_DISCUSSION_MARKER = "[AGENT_LAB_DISCUSSION]"
@@ -33,6 +34,13 @@ AGENT_LAB_PROPOSAL_MARKER = "[AGENT_LAB_PROPOSAL]"
 MAX_DISCORD_MESSAGE_LENGTH = 1900
 DEFAULT_LISTEN_WINDOW_MINUTES = 30
 NEGOTIATION_MESSAGE_COOLDOWN_SECONDS = 45
+
+PLAN_FLEXIBILITY_STRICT = "structured"
+PLAN_FLEXIBILITY_BALANCED = "balanced"
+PLAN_FLEXIBILITY_FLEXIBLE = "flexible"
+FOLLOW_UP_CONTROL_BALANCED = "balanced"
+FOLLOW_UP_CONTROL_AUTONOMOUS = "autonomous"
+FOLLOW_UP_CONTROL_APPROVAL_REQUIRED = "approval_required"
 
 
 def _load_json(filename: str) -> list[dict]:
@@ -42,6 +50,35 @@ def _load_json(filename: str) -> list[dict]:
 
 RESTAURANTS = _load_json("restaurants.json")
 EVENTS = _load_json("events.json")
+
+
+def _discord_error_reason(exc: requests.RequestException) -> str:
+    response = getattr(exc, "response", None)
+    if response is not None:
+        status_code = response.status_code
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+
+        if isinstance(payload, dict):
+            message = str(payload.get("message") or "").strip()
+            errors = payload.get("errors")
+            if message and errors:
+                return f"Discord API HTTP {status_code}: {message} ({json.dumps(errors, ensure_ascii=False)})"
+            if message:
+                return f"Discord API HTTP {status_code}: {message}"
+
+        body = response.text.strip()
+        if body:
+            return f"Discord API HTTP {status_code}: {body}"
+        return f"Discord API HTTP {status_code}"
+
+    if isinstance(exc, requests.Timeout):
+        return "Discord request timed out."
+    if isinstance(exc, requests.ConnectionError):
+        return f"Could not connect to Discord: {exc}"
+    return str(exc)
 
 BCBS_PLAN_METADATA_SOURCE = "https://www.bcbs.com/about-us/blue-cross-blue-shield-system/state-health-plan-companies"
 BCBS_STATE_PLAN_DIRECTORY = {
@@ -843,7 +880,8 @@ def _send_discord_message(message: str) -> dict:
             "channel_id": channel_id or None,
             "message_preview": message,
             "missing": missing_fields,
-            "note": "Discord credentials are not configured yet, so this is only a preview.",
+            "reason": f"Missing Discord configuration: {', '.join(missing_fields)}.",
+            "note": "Discord credentials are not configured yet.",
         }
 
     try:
@@ -855,12 +893,14 @@ def _send_discord_message(message: str) -> dict:
             json={"content": message},
         )
     except requests.RequestException as exc:
+        reason = _discord_error_reason(exc)
         return {
             "sent": False,
             "setup_required": False,
             "channel_id": channel_id,
             "message_preview": message,
             "error": str(exc),
+            "reason": reason,
         }
 
     return {
@@ -892,7 +932,8 @@ def _fetch_discord_messages(limit: int = 50) -> dict:
             "channel_id": channel_id or None,
             "messages": [],
             "missing": missing_fields,
-            "note": "Discord credentials are not configured yet, so local demo posts are being used.",
+            "reason": f"Missing Discord configuration: {', '.join(missing_fields)}.",
+            "note": "Discord credentials are not configured yet.",
         }
 
     try:
@@ -903,12 +944,14 @@ def _fetch_discord_messages(limit: int = 50) -> dict:
             params={"limit": min(max(limit, 1), 100)},
         )
     except requests.RequestException as exc:
+        reason = _discord_error_reason(exc)
         return {
             "fetched": False,
             "setup_required": False,
             "channel_id": channel_id,
             "messages": [],
             "error": str(exc),
+            "reason": reason,
         }
 
     return {
@@ -966,6 +1009,41 @@ def _write_local_agent_message(message: dict) -> None:
         json.dump({"messages": messages[-100:]}, file, indent=2)
 
 
+def _read_dev_console_state() -> dict:
+    if not DEV_CONSOLE_STATE_FILE.exists():
+        return {}
+
+    try:
+        with DEV_CONSOLE_STATE_FILE.open(encoding="utf-8") as file:
+            payload = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    return payload if isinstance(payload, dict) else {}
+
+
+def _write_dev_console_state(payload: dict) -> dict:
+    DEV_CONSOLE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with DEV_CONSOLE_STATE_FILE.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2)
+    return payload
+
+
+def get_discord_oldest_lookback_timestamp() -> str | None:
+    payload = _read_dev_console_state()
+    value = payload.get("discord_oldest_lookback_timestamp")
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def set_discord_oldest_lookback_timestamp(timestamp: str | None) -> str | None:
+    payload = _read_dev_console_state()
+    normalized = timestamp.strip() if isinstance(timestamp, str) else ""
+    payload["discord_oldest_lookback_timestamp"] = normalized or None
+    payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+    _write_dev_console_state(payload)
+    return payload["discord_oldest_lookback_timestamp"]
+
+
 def _parse_timestamp(value: str | None) -> datetime | None:
     if not value or not isinstance(value, str):
         return None
@@ -985,6 +1063,26 @@ def _parse_timestamp(value: str | None) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _resolve_lookback_cutoff(
+    oldest_lookback_timestamp: str | datetime | None,
+    max_age_minutes: int | None,
+) -> datetime | None:
+    if isinstance(oldest_lookback_timestamp, datetime):
+        if oldest_lookback_timestamp.tzinfo is None:
+            return oldest_lookback_timestamp.replace(tzinfo=timezone.utc)
+        return oldest_lookback_timestamp.astimezone(timezone.utc)
+
+    if isinstance(oldest_lookback_timestamp, str):
+        parsed = _parse_timestamp(oldest_lookback_timestamp)
+        if parsed is not None:
+            return parsed
+
+    if isinstance(max_age_minutes, int) and max_age_minutes > 0:
+        return datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+
+    return None
 
 
 def _is_recent_post(post: dict, cutoff: datetime | None) -> bool:
@@ -1031,6 +1129,7 @@ def build_agent_intent_message(profile: dict, goal: str) -> str:
         "bcbs_plan": profile.get("bcbs_plan", "Unknown BCBS Plan"),
         "job_title": profile.get("job_title", "Conference participant"),
         "restaurant_preferences": profile.get("restaurant_preferences", ""),
+        "done_for_day_time": profile.get("done_for_day_time", ""),
         "goal": goal.strip(),
         "posted_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1038,6 +1137,7 @@ def build_agent_intent_message(profile: dict, goal: str) -> str:
         f"{AGENT_LAB_POST_MARKER} **{payload['name']}'s agent is looking for collaborators.**\n"
         f"Plan: {payload['bcbs_plan']} | Role: {payload['job_title']}\n"
         f"Food preferences: {payload['restaurant_preferences'] or 'Open to ideas'}\n"
+        f"Done for the day around: {payload['done_for_day_time'] or 'Time not specified'}\n"
         f"Wants to do: {payload['goal'] or 'Meet people for dinner'}"
     )
     structured = json.dumps(payload, ensure_ascii=False)
@@ -1082,22 +1182,9 @@ def _parse_agent_lab_message(message: dict, marker: str) -> dict | None:
 def publish_agent_post(profile: dict, goal: str) -> dict:
     message = build_agent_intent_message(profile, goal)
     discord_result = _send_discord_message(message)
-    local_post = {
-        "participant_id": profile.get("participant_id", ""),
-        "name": profile.get("name", "Anonymous"),
-        "bcbs_plan": profile.get("bcbs_plan", "Unknown BCBS Plan"),
-        "job_title": profile.get("job_title", "Conference participant"),
-        "restaurant_preferences": profile.get("restaurant_preferences", ""),
-        "goal": goal.strip(),
-        "posted_at": datetime.now(timezone.utc).isoformat(),
-        "source": "local",
-        "discord_message_id": discord_result.get("message_id"),
-    }
-    _write_local_agent_post(local_post)
     return {
-        "posted": True,
+        "posted": bool(discord_result.get("sent")),
         "discord": discord_result,
-        "local_post": local_post,
         "message_preview": message,
     }
 
@@ -1106,6 +1193,7 @@ def listen_for_agent_posts(
     current_participant_id: str | None = None,
     limit: int = 50,
     max_age_minutes: int | None = DEFAULT_LISTEN_WINDOW_MINUTES,
+    oldest_lookback_timestamp: str | datetime | None = None,
 ) -> dict:
     discord_result = _fetch_discord_messages(limit)
     posts = []
@@ -1115,12 +1203,8 @@ def listen_for_agent_posts(
             if parsed:
                 posts.append(parsed)
 
-    if not posts:
-        posts = _read_local_agent_posts()
-
-    cutoff = None
-    if isinstance(max_age_minutes, int) and max_age_minutes > 0:
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+    cutoff = _resolve_lookback_cutoff(oldest_lookback_timestamp, max_age_minutes)
+    if cutoff is not None:
         posts = [post for post in posts if _is_recent_post(post, cutoff)]
 
     if current_participant_id:
@@ -1140,8 +1224,9 @@ def listen_for_agent_posts(
     return {
         "posts": sorted_posts[:limit],
         "discord": discord_result,
-        "source": "discord" if discord_result.get("fetched") and sorted_posts else "local",
+        "source": "discord",
         "max_age_minutes": max_age_minutes,
+        "oldest_lookback_timestamp": cutoff.isoformat() if cutoff else None,
     }
 
 
@@ -1162,6 +1247,7 @@ def listen_for_agent_messages(
     current_participant_id: str | None = None,
     limit: int = 100,
     max_age_minutes: int | None = DEFAULT_LISTEN_WINDOW_MINUTES,
+    oldest_lookback_timestamp: str | datetime | None = None,
 ) -> dict:
     discord_result = _fetch_discord_messages(limit)
     messages = []
@@ -1172,13 +1258,8 @@ def listen_for_agent_messages(
                 if parsed:
                     messages.append(parsed)
 
-    if not messages:
-        local_messages = _read_local_agent_messages()
-        messages = [item for item in local_messages if item.get("marker") in {AGENT_LAB_DISCUSSION_MARKER, AGENT_LAB_PROPOSAL_MARKER}]
-
-    cutoff = None
-    if isinstance(max_age_minutes, int) and max_age_minutes > 0:
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+    cutoff = _resolve_lookback_cutoff(oldest_lookback_timestamp, max_age_minutes)
+    if cutoff is not None:
         messages = [message for message in messages if _is_recent_post(message, cutoff)]
 
     if current_participant_id:
@@ -1193,8 +1274,9 @@ def listen_for_agent_messages(
     return {
         "messages": sorted_messages[:limit],
         "discord": discord_result,
-        "source": "discord" if discord_result.get("fetched") and sorted_messages else "local",
+        "source": "discord",
         "max_age_minutes": max_age_minutes,
+        "oldest_lookback_timestamp": cutoff.isoformat() if cutoff else None,
     }
 
 
@@ -1213,10 +1295,81 @@ def _names_from_posts(posts: list[dict]) -> list[str]:
     return [post.get("name", "another participant") for post in posts if isinstance(post, dict)]
 
 
-def _derive_human_follow_up_questions(profile: dict, incoming_messages: list[dict]) -> list[str]:
+def _text_signals_uncertainty(value: str) -> bool:
+    normalized = _normalize_text(value)
+    unsure_phrases = (
+        "i dont know",
+        "dont know",
+        "not sure",
+        "unsure",
+        "open to ideas",
+        "help me choose",
+        "anything works",
+        "no preference",
+    )
+    return any(phrase in normalized for phrase in unsure_phrases)
+
+
+def _availability_overlap_hint(profile: dict, collaborators: list[dict]) -> str:
+    own_time = profile.get("done_for_day_time", "").strip()
+    collaborator_times = [post.get("done_for_day_time", "").strip() for post in collaborators if post.get("done_for_day_time", "").strip()]
+    if own_time and collaborator_times:
+        return f"You're free around {own_time}, and others are mentioning {', '.join(collaborator_times[:2])}."
+    if own_time:
+        return f"You're free around {own_time}."
+    if collaborator_times:
+        return f"Other people are mentioning availability around {', '.join(collaborator_times[:2])}."
+    return ""
+
+
+def _derive_human_follow_up_questions(
+    profile: dict,
+    incoming_messages: list[dict],
+    collaboration: dict | None = None,
+    collaborators: list[dict] | None = None,
+) -> list[str]:
     questions: list[str] = []
-    if not profile.get("restaurant_preferences", "").strip():
+    collaborators = collaborators or []
+    diplomacy = profile.get("diplomacy_preferences") or {}
+    plan_flexibility = diplomacy.get("plan_flexibility", PLAN_FLEXIBILITY_BALANCED)
+    follow_up_control = diplomacy.get("follow_up_control", FOLLOW_UP_CONTROL_BALANCED)
+    allow_local_clarifications = follow_up_control != FOLLOW_UP_CONTROL_AUTONOMOUS
+    goal = profile.get("goal", "").strip()
+    preferences = profile.get("restaurant_preferences", "").strip()
+    uncertain = _text_signals_uncertainty(goal) or _text_signals_uncertainty(preferences)
+    restaurants = (collaboration or {}).get("restaurants") or []
+    events = (collaboration or {}).get("events") or []
+
+    if allow_local_clarifications and not preferences and plan_flexibility in {PLAN_FLEXIBILITY_STRICT, PLAN_FLEXIBILITY_BALANCED}:
         questions.append("What dietary, budget, or vibe constraints should I represent before I lock in a group dinner?")
+    elif allow_local_clarifications and uncertain and plan_flexibility == PLAN_FLEXIBILITY_STRICT:
+        if restaurants:
+            option_names = " or ".join(restaurant.get("name", "that option") for restaurant in restaurants[:2])
+            questions.append(
+                f"You said you are not sure yet. Based on nearby options, should I optimize more for {option_names}, or keep looking for something different?"
+            )
+        else:
+            questions.append(
+                "You said you are not sure yet. Should I optimize first for budget, food style, walking distance, or networking vibe?"
+            )
+
+    if allow_local_clarifications and uncertain and plan_flexibility == PLAN_FLEXIBILITY_STRICT:
+        if collaborators:
+            names = ", ".join(post.get("name", "another participant") for post in collaborators[:3])
+            availability_hint = _availability_overlap_hint(profile, collaborators)
+            question = f"People with similar plans right now include {names}."
+            if availability_hint:
+                question = f"{question} {availability_hint}"
+            question += " Would you rather I steer toward a quick dinner, a longer networking meal, or dinner plus an after-dinner stop?"
+            questions.append(question)
+        elif events:
+            event_names = " or ".join(event.get("name", "that option") for event in events[:2])
+            questions.append(
+                f"If dinner goes well, should I bias toward a simple dinner-only plan or leave room for something after, like {event_names}?"
+            )
+
+    if allow_local_clarifications and not profile.get("done_for_day_time", "").strip() and plan_flexibility != PLAN_FLEXIBILITY_FLEXIBLE:
+        questions.append("What time do you expect to be done for the day so I can suggest plans at the right time?")
 
     for message in incoming_messages:
         for question in message.get("questions") or []:
@@ -1311,15 +1464,45 @@ def _store_agent_message_locally(profile: dict, message: str, marker: str) -> di
 def post_agent_discussion_message(profile: dict, collaboration: dict, collaborators: list[dict], questions: list[str] | None = None) -> dict:
     message = build_agent_discussion_message(profile, collaboration, collaborators, questions=questions)
     discord_result = _send_discord_message(message)
-    local_message = _store_agent_message_locally(profile, message, AGENT_LAB_DISCUSSION_MARKER)
-    return {"sent": True, "discord": discord_result, "local_message": local_message, "message_preview": message}
+    local_message = None
+    if discord_result.get("sent"):
+        local_message = {
+            **(_extract_json_payload(message) or {}),
+            "marker": AGENT_LAB_DISCUSSION_MARKER,
+            "sender_participant_id": profile.get("participant_id", ""),
+            "sender_name": profile.get("name", "Anonymous"),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "source": "discord",
+            "discord_message_id": discord_result.get("message_id"),
+        }
+    return {
+        "sent": bool(discord_result.get("sent")),
+        "discord": discord_result,
+        "local_message": local_message,
+        "message_preview": message,
+    }
 
 
 def post_agent_proposal_message(profile: dict, collaboration: dict, collaborators: list[dict]) -> dict:
     message = build_agent_proposal_message(profile, collaboration, collaborators)
     discord_result = _send_discord_message(message)
-    local_message = _store_agent_message_locally(profile, message, AGENT_LAB_PROPOSAL_MARKER)
-    return {"sent": True, "discord": discord_result, "local_message": local_message, "message_preview": message}
+    local_message = None
+    if discord_result.get("sent"):
+        local_message = {
+            **(_extract_json_payload(message) or {}),
+            "marker": AGENT_LAB_PROPOSAL_MARKER,
+            "sender_participant_id": profile.get("participant_id", ""),
+            "sender_name": profile.get("name", "Anonymous"),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "source": "discord",
+            "discord_message_id": discord_result.get("message_id"),
+        }
+    return {
+        "sent": bool(discord_result.get("sent")),
+        "discord": discord_result,
+        "local_message": local_message,
+        "message_preview": message,
+    }
 
 
 def _overlap_score(profile: dict, post: dict) -> int:
@@ -1337,6 +1520,10 @@ def _overlap_score(profile: dict, post: dict) -> int:
         score += min(4, len(set(profile_goal.split()) & set(post_goal.split())))
     if profile.get("job_title") and post.get("job_title"):
         score += len(set(_normalize_text(profile["job_title"]).split()) & set(_normalize_text(post["job_title"]).split()))
+    if profile.get("done_for_day_time") and post.get("done_for_day_time"):
+        score += len(
+            set(_normalize_text(profile["done_for_day_time"]).split()) & set(_normalize_text(post["done_for_day_time"]).split())
+        )
     return score
 
 
@@ -1529,14 +1716,57 @@ def _message_is_relevant_to_group(message: dict, current_participant_id: str, co
     return current_participant_id in target_ids or bool(target_ids & collaborator_ids)
 
 
-def run_agent_negotiation_cycle(profile: dict, context: dict | None = None, state: dict | None = None) -> dict:
+def run_agent_negotiation_cycle(
+    profile: dict,
+    context: dict | None = None,
+    state: dict | None = None,
+    oldest_lookback_timestamp: str | datetime | None = None,
+) -> dict:
     previous_state = dict(state or {})
-    posts_result = listen_for_agent_posts(profile.get("participant_id"))
+    diplomacy = profile.get("diplomacy_preferences") or {}
+    follow_up_control = diplomacy.get("follow_up_control", FOLLOW_UP_CONTROL_BALANCED)
+    posts_result = listen_for_agent_posts(
+        profile.get("participant_id"),
+        oldest_lookback_timestamp=oldest_lookback_timestamp,
+    )
+    if not posts_result.get("discord", {}).get("fetched"):
+        reason = posts_result.get("discord", {}).get("reason") or "Discord message fetch failed."
+        return {
+            "status": "discord_error",
+            "summary": f"Discord is unavailable, so agent coordination cannot continue. Reason: {reason}",
+            "visible_agent_posts": [],
+            "discussion_messages": [],
+            "collaboration": None,
+            "candidate_plan": None,
+            "follow_up_questions": [],
+            "activity": [f"Discord post lookup failed: {reason}"],
+            "state": {"status": "discord_error", "force_new_round": False},
+            "listen_result": posts_result,
+            "message_result": None,
+        }
     visible_posts = posts_result.get("posts", [])
     ranked_posts = sorted(visible_posts, key=lambda post: _overlap_score(profile, post), reverse=True)
     collaborators = ranked_posts[:3]
 
-    message_result = listen_for_agent_messages(profile.get("participant_id"))
+    message_result = listen_for_agent_messages(
+        profile.get("participant_id"),
+        oldest_lookback_timestamp=oldest_lookback_timestamp,
+    )
+    if not message_result.get("discord", {}).get("fetched"):
+        reason = message_result.get("discord", {}).get("reason") or "Discord discussion fetch failed."
+        return {
+            "status": "discord_error",
+            "summary": f"Discord is unavailable, so agent coordination cannot continue. Reason: {reason}",
+            "visible_agent_posts": visible_posts,
+            "discussion_messages": [],
+            "collaboration": None,
+            "candidate_plan": None,
+            "follow_up_questions": [],
+            "activity": [f"Discord discussion lookup failed: {reason}"],
+            "state": {"status": "discord_error", "force_new_round": False},
+            "listen_result": posts_result,
+            "message_result": message_result,
+        }
     all_messages = message_result.get("messages", [])
 
     if not collaborators:
@@ -1565,30 +1795,64 @@ def run_agent_negotiation_cycle(profile: dict, context: dict | None = None, stat
     incoming_messages = [
         message for message in relevant_messages if message.get("sender_participant_id") != profile.get("participant_id")
     ]
-    follow_up_questions = _derive_human_follow_up_questions(profile, incoming_messages)
+    follow_up_questions = _derive_human_follow_up_questions(
+        profile,
+        incoming_messages,
+        collaboration=collaboration,
+        collaborators=collaborators,
+    )
     activity: list[str] = [f"Tracking a possible group with {', '.join(_names_from_posts(collaborators))}."]
 
     should_force_round = bool(previous_state.get("force_new_round"))
+    proposal_ready = bool(incoming_messages) or len(collaborators) >= 2
     recent_discussion = _recent_outbound_message(
         relevant_messages,
         profile.get("participant_id", ""),
         AGENT_LAB_DISCUSSION_MARKER,
         group_signature,
     )
-    if should_force_round or not _is_within_cooldown(recent_discussion):
+    pending_agent_follow_up = None
+    if not proposal_ready and (should_force_round or not _is_within_cooldown(recent_discussion)):
         outbound_questions = [
             "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
         ]
-        discussion_post = post_agent_discussion_message(profile, collaboration, collaborators, questions=outbound_questions)
-        activity.append("Posted a discussion update so the other agents can compare constraints and preferences.")
-        relevant_messages = [discussion_post["local_message"], *relevant_messages]
+        if follow_up_control == FOLLOW_UP_CONTROL_APPROVAL_REQUIRED:
+            pending_agent_follow_up = {
+                "collaborators": collaborators,
+                "questions": outbound_questions,
+                "summary": "Your current diplomacy setting requires your approval before I send another follow-up to the other agents.",
+            }
+            activity.append("Prepared an agent follow-up and paused until the human approves sending it.")
+        else:
+            discussion_post = post_agent_discussion_message(profile, collaboration, collaborators, questions=outbound_questions)
+            if discussion_post.get("sent") and discussion_post.get("local_message"):
+                activity.append("Posted a discussion update so the other agents can compare constraints and preferences.")
+                relevant_messages = [discussion_post["local_message"], *relevant_messages]
+            else:
+                reason = discussion_post.get("discord", {}).get("reason") or "Discord send failed."
+                return {
+                    "status": "discord_error",
+                    "summary": f"Discord is unavailable, so the agent could not continue the negotiation. Reason: {reason}",
+                    "visible_agent_posts": visible_posts,
+                    "discussion_messages": relevant_messages[:8],
+                    "collaboration": collaboration,
+                    "candidate_plan": None,
+                    "follow_up_questions": [],
+                    "pending_agent_follow_up": None,
+                    "activity": [*activity, f"Discord discussion send failed: {reason}"],
+                    "state": {"status": "discord_error", "group_signature": group_signature, "force_new_round": False},
+                    "listen_result": posts_result,
+                    "message_result": message_result,
+                }
 
-    proposal_ready = bool(incoming_messages) or len(collaborators) >= 2
     status = "monitoring"
     candidate_plan = None
     summary = "Your agent is still discussing options with nearby agents."
 
-    if follow_up_questions:
+    if pending_agent_follow_up:
+        status = "needs_human_input"
+        summary = pending_agent_follow_up["summary"]
+    elif follow_up_questions:
         status = "needs_human_input"
         summary = "Another agent needs a little more information before this group can lock a plan."
     elif proposal_ready:
@@ -1606,11 +1870,13 @@ def run_agent_negotiation_cycle(profile: dict, context: dict | None = None, stat
         "collaboration": collaboration,
         "candidate_plan": candidate_plan,
         "follow_up_questions": follow_up_questions,
+        "pending_agent_follow_up": pending_agent_follow_up,
         "activity": activity,
         "state": {
             "status": status,
             "group_signature": group_signature,
             "force_new_round": False,
+            "pending_agent_follow_up": pending_agent_follow_up,
         },
         "listen_result": posts_result,
         "message_result": message_result,

@@ -1,0 +1,1315 @@
+{
+  "messages": [
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Sujata and Brady can meet to discuss AI agent ideas over dinner with veg options and then enjoy a walk by the water or rooftop drinks nearby.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Invite Brady Wilkinson to join Sujata Patel for dinner at Roti Modern Mediterranean, which offers good veg options and is suitable for groups.",
+        "After dinner, suggest a walk by the nearby water or head to Vincent's Skybar rooftop for drinks to continue the conversation."
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:25:00.686387+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "sent_at": "2026-04-11T16:25:28.931940+00:00",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Sujata and Brady can team up for dinner to share AI agent ideas and enjoy good food with veg options near the conference, then take a walk by the water as Brady prefers.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Book a dinner reservation at Roti Modern Mediterranean, which offers vegetarian options and is suitable for groups.",
+        "Plan an after-dinner walk near the waterfront area close to the venue to satisfy Brady's desire for a water-side stroll.",
+        "Coordinate with Brady to confirm dinner time and meeting spot at Roti Modern Mediterranean."
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:25:50.173623+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Sujata can team up with Brady to share AI agent ideas over dinner, with vegetarian and water-adjacent dining options nearby.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Coordinate with Brady Wilkinson to confirm dinner plans.",
+        "Reserve a table at Roti Modern Mediterranean for good Mediterranean vegetarian options and proximity to water.",
+        "Plan an after-dinner walk near the water to accommodate Brady's preference."
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:26:16.887840+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Sujata and Brady can team up to meet peers and discuss AI agent ideas over dinner with vegetarian and Tex-Mex options, followed by a walk or drinks nearby.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Book a dinner reservation at Roti Modern Mediterranean, which offers good group seating, vegetarian-friendly Mediterranean cuisine, and is near the conference.",
+        "Plan to walk to Vincent's Skybar after dinner for drinks and socializing on the rooftop.",
+        "Coordinate a meetup time with Brady and Sujata near the Dallas Marriott Downtown lobby to walk together to dinner."
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:26:51.600804+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "sent_at": "2026-04-11T16:27:25.497674+00:00",
+      "source": "local"
+    },
+    {
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "sent_at": "2026-04-11T16:27:38.402155+00:00",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Sujata and Brady can connect for dinner to discuss AI agent ideas. Roti Modern Mediterranean offers good group seating with vegetarian options and is close to water. After dinner, they can walk to Vincent\u2019s Skybar for drinks and views.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Invite Brady Wilkinson to join Sujata Patel for dinner at Roti Modern Mediterranean where vegetarian options are available.",
+        "Plan to walk together after dinner to Vincent\u2019s Skybar rooftop bar for drinks and conversation.",
+        "Coordinate time and make a reservation at Roti Modern Mediterranean."
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:27:49.251363+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Connect Sujata Patel and Brady Wilkinson for dinner to discuss AI agent ideas. Recommend Roti Modern Mediterranean for its veg options and good group setting. After dinner, propose a walk by the water as Brady prefers and then drinks at Vincent\u2019s Skybar rooftop bar.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Invite Brady Wilkinson to join Sujata Patel for dinner at Roti Modern Mediterranean.",
+        "Make a reservation at Roti Modern Mediterranean for a group including Sujata and Brady.",
+        "Plan an after-dinner walk near the water to accommodate Brady\u2019s preference."
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:28:22.531625+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "sender_name": "Sujata Patel",
+      "target_participant_ids": [
+        "bf369dd3-d1ae-46d8-baf1-29324937452b"
+      ],
+      "target_names": [
+        "Brady Wilkinson"
+      ],
+      "group_signature": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc|bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "summary": "Sujata and Brady would benefit from dining together to discuss AI ideas. Roti Modern Mediterranean suits both with vegetarian options and proximity, then a walk by the nearby water or rooftop bar fits Brady's preference for water views.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Invite Brady Wilkinson and Sujata Patel to dine at Roti Modern Mediterranean which offers good vegetarian options and is group-friendly",
+        "Plan to walk after dinner along the nearby water area or visit Vincent\u2019s Skybar rooftop for drinks and conversation"
+      ],
+      "restaurants": [
+        "Mendocino Farms",
+        "Roti Modern Mediterranean"
+      ],
+      "events": [
+        "Vincent\u2019s Skybar",
+        "Dallas Museum of Art"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-11T16:28:55.401484+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "sender_name": "Jeff Probst",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jonny Fairplay"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:05:38.351001+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jeff Probst"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:05:38.460225+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jeff Probst"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:05:40.864295+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "sender_name": "Jeff Probst",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jonny Fairplay"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:05:47.004776+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jeff Probst"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:05:51.067304+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "sender_name": "Jeff Probst",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jonny Fairplay"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:05:57.146487+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jeff Probst"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:06:00.680178+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "sender_name": "Jeff Probst",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jonny Fairplay"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:06:07.095878+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jeff Probst"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:06:10.733255+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "sender_name": "Jeff Probst",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jonny Fairplay"
+      ],
+      "group_signature": "65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 1 likely collaborator(s): Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:06:16.864590+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jonny Fairplay",
+        "Jeff Probst"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jonny Fairplay, Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay, Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:16:41.555844+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jonny Fairplay",
+        "Jeff Probst"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jonny Fairplay, Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay, Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:16:43.697618+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jonny Fairplay",
+        "Jeff Probst"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jonny Fairplay, Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay, Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:16:53.612195+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jonny Fairplay",
+        "Jeff Probst"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jonny Fairplay, Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay, Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:04.279537+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jonny Fairplay",
+        "Jeff Probst"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jonny Fairplay, Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay, Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:13.848046+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f"
+      ],
+      "target_names": [
+        "Jonny Fairplay",
+        "Jeff Probst"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jonny Fairplay, Jeff Probst.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jonny Fairplay, Jeff Probst and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:24.123732+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:27.413780+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:29.820871+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:39.636649+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:49.746320+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:17:59.725056+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:18:10.374505+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:18:20.292392+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:18:30.609413+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:18:40.707861+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:18:50.374452+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:19:01.229502+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:19:12.202325+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:20:12.520569+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:21:11.971680+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:22:12.213061+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    },
+    {
+      "sender_participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "sender_name": "Jonny Fairplay",
+      "target_participant_ids": [
+        "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+        "8ac644f1-5df0-43d4-80a6-3defe7e00e0e"
+      ],
+      "target_names": [
+        "Jeff Probst",
+        "Jonny Fairplay"
+      ],
+      "group_signature": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3|65c7fe14-06f2-4de6-991d-9f2406e1c99f|8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "summary": "Your agent found 2 likely collaborator(s): Jeff Probst, Jonny Fairplay.",
+      "questions": [
+        "Please confirm your human's dietary needs, budget ceiling, and comfortable walking distance."
+      ],
+      "next_steps": [
+        "Reply in Discord tagging Jeff Probst, Jonny Fairplay and suggest forming a dinner group.",
+        "Use restaurant preferences to pick a place with the fewest conflicts.",
+        "Ask each person to confirm walking distance, budget, and any dietary constraints."
+      ],
+      "restaurants": [
+        "Meso Maya",
+        "The Rustic"
+      ],
+      "events": [
+        "Live Music at The Rustic",
+        "Rooftop Drinks at Waterproof"
+      ],
+      "status": "discussion",
+      "sent_at": "2026-04-12T14:23:12.104840+00:00",
+      "marker": "[AGENT_LAB_DISCUSSION]",
+      "source": "local"
+    }
+  ]
+}

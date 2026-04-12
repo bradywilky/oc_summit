@@ -43,6 +43,77 @@
       "posted_at": "2026-04-11T16:12:27.624070+00:00",
       "source": "local",
       "discord_message_id": "1492557933962203363"
+    },
+    {
+      "participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "name": "Sujata Patel",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "not picky as long as there are veg options!",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-11T16:24:48.271707+00:00",
+      "source": "local",
+      "discord_message_id": "1492560976703389727"
+    },
+    {
+      "participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "name": "Jeff Probst",
+      "bcbs_plan": "Florida Blue",
+      "job_title": "HR",
+      "restaurant_preferences": "steak",
+      "done_for_day_time": "5",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-12T14:03:34.680918+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "name": "Jonny Fairplay",
+      "bcbs_plan": "BCBS Alabama",
+      "job_title": "AI Strategist",
+      "restaurant_preferences": "anything with drinks",
+      "done_for_day_time": "6 or 7",
+      "goal": "good people!",
+      "posted_at": "2026-04-12T14:05:33.997850+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "name": "Jonny Fairplay",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "no idea",
+      "done_for_day_time": "",
+      "goal": "drinks\n\nAdditional guidance from the human in chat:\n- like 6pm",
+      "posted_at": "2026-04-12T14:17:25.179072+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "9b970f8b-e22f-4be3-ab02-af8dd696e24d",
+      "name": "Jonny Fairplay",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "not sure",
+      "done_for_day_time": "",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-12T14:25:11.765268+00:00",
+      "source": "local",
+      "discord_message_id": "1492893257980706856"
+    },
+    {
+      "participant_id": "946017dc-7cb9-460a-813b-551d4f793e47",
+      "name": "Sujata Patel",
+      "bcbs_plan": "FEPOC",
+      "job_title": "Product owner",
+      "restaurant_preferences": "vegetarian friendly",
+      "done_for_day_time": "5 PM",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-12T14:34:47.503265+00:00",
+      "source": "local",
+      "discord_message_id": null
     }
   ]
 }
