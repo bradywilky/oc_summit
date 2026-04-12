@@ -22,6 +22,7 @@ FOURSQUARE_API_VERSION = "2025-06-17"
 DISCORD_API_BASE_URL = "https://discord.com/api/v10"
 DALLAS_LATITUDE = 32.7767
 DALLAS_LONGITUDE = -96.7970
+DEFAULT_CITY_SEARCH_LOCATION = "Dallas, TX"
 DEFAULT_HOTEL_LOCATION = "Dallas Marriott Downtown, 650 N Pearl St, Dallas, TX 75201"
 DEFAULT_DISCORD_MESSAGE = "Discord placeholder message from Agent Lab. Replace this after setup."
 AGENT_POSTS_FILE = DATA_DIR / "agent_posts.json"
@@ -34,6 +35,7 @@ AGENT_LAB_PROPOSAL_MARKER = "[AGENT_LAB_PROPOSAL]"
 MAX_DISCORD_MESSAGE_LENGTH = 1900
 DEFAULT_LISTEN_WINDOW_MINUTES = 30
 NEGOTIATION_MESSAGE_COOLDOWN_SECONDS = 45
+SIMULATED_PROFILE_SOURCE = "dev_console"
 
 PLAN_FLEXIBILITY_STRICT = "structured"
 PLAN_FLEXIBILITY_BALANCED = "balanced"
@@ -309,6 +311,63 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 
+def _goal_prefers_hotel_proximity(goal: str) -> bool:
+    normalized = f" {_normalize_text(goal)} "
+    proximity_phrases = (
+        " near the hotel ",
+        " near hotel ",
+        " close to the hotel ",
+        " close to hotel ",
+        " by the hotel ",
+        " around the hotel ",
+        " hotel area ",
+        " conference area ",
+        " near the conference ",
+        " near conference ",
+        " nearby ",
+        " walkable ",
+        " walking distance ",
+        " short walk ",
+    )
+    return any(phrase in normalized for phrase in proximity_phrases)
+
+
+def _search_center_for_goal(goal: str, context: dict | None = None) -> tuple[str, bool]:
+    hotel_location = (context or {}).get("hotel_location") or DEFAULT_HOTEL_LOCATION
+    if _goal_prefers_hotel_proximity(goal):
+        return hotel_location, True
+    return DEFAULT_CITY_SEARCH_LOCATION, False
+
+
+def _rank_restaurants(restaurants: list[dict], *, prefer_proximity: bool) -> list[dict]:
+    if prefer_proximity:
+        return sorted(
+            restaurants,
+            key=lambda item: (item["walk_minutes"], item["price_level"], -int(item["good_for_groups"])),
+        )
+    return sorted(
+        restaurants,
+        key=lambda item: (
+            item["price_level"] > 2,
+            not item["good_for_groups"],
+            item["price_level"],
+            item["walk_minutes"],
+        ),
+    )
+
+
+def _rank_events(events: list[dict], *, prefer_proximity: bool) -> list[dict]:
+    if prefer_proximity:
+        return sorted(events, key=lambda item: item["distance_meters"])
+    return sorted(
+        events,
+        key=lambda item: (
+            item.get("type") not in {"music", "rooftop", "comedy", "drinks"},
+            item.get("name", ""),
+        ),
+    )
+
+
 def _restaurant_query(name: str, address: str | None = None) -> str:
     parts = [name.strip()]
     if address and address.strip() and address != "Address unavailable":
@@ -581,7 +640,7 @@ def _fetch_foursquare_restaurants(location: str) -> list[dict]:
         )
 
     if not results:
-        raise ValueError("Foursquare returned no nearby restaurants.")
+        raise ValueError("Foursquare returned no restaurants for that search area.")
 
     return results
 
@@ -632,35 +691,31 @@ def _fetch_foursquare_after_dinner_places(location: str) -> list[dict]:
             seen_names.add(normalized_name)
 
     if not results:
-        raise ValueError("Foursquare returned no nearby after-dinner venues.")
+        raise ValueError("Foursquare returned no after-dinner venues for that search area.")
 
-    return sorted(results, key=lambda item: item["distance_meters"])
+    return results
 
 
 def restaurant_finder(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    location = (context or {}).get("hotel_location") or DEFAULT_HOTEL_LOCATION
+    del history
+    location, prefer_proximity = _search_center_for_goal(goal, context)
     try:
         live_results = _fetch_foursquare_restaurants(location)
-        ranked = sorted(
-            live_results,
-            key=lambda item: (item["walk_minutes"], item["price_level"], -int(item["good_for_groups"])),
-        )
+        ranked = _rank_restaurants(live_results, prefer_proximity=prefer_proximity)
         return {
             "restaurants": [_with_restaurant_links(item) for item in ranked[:4]],
             "source": "Foursquare Places API",
             "live": True,
             "search_center": location,
+            "proximity_priority": prefer_proximity,
         }
     except (HTTPError, URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
-        ranked = sorted(
-            RESTAURANTS,
-            key=lambda item: (item["walk_minutes"], item["price_level"], -int(item["good_for_groups"])),
-        )
         return {
-            "restaurants": [_with_restaurant_links(item) for item in ranked[:4]],
-            "source": "Fallback restaurant dataset",
+            "restaurants": [],
+            "source": "Foursquare Places API",
             "live": False,
             "search_center": location,
+            "proximity_priority": prefer_proximity,
             "error": str(exc),
         }
 
@@ -775,22 +830,25 @@ def conversation_starter(goal: str, history: list[dict], context: dict | None = 
 
 
 def event_finder(goal: str, history: list[dict], context: dict | None = None) -> dict:
-    del goal, history
-    location = (context or {}).get("hotel_location") or DEFAULT_HOTEL_LOCATION
+    del history
+    location, prefer_proximity = _search_center_for_goal(goal, context)
     try:
         live_results = _fetch_foursquare_after_dinner_places(location)
+        ranked = _rank_events(live_results, prefer_proximity=prefer_proximity)
         return {
-            "events": live_results[:3],
+            "events": ranked[:3],
             "source": "Foursquare Places API",
             "live": True,
             "search_center": location,
+            "proximity_priority": prefer_proximity,
         }
     except (HTTPError, URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
         return {
-            "events": EVENTS[:3],
-            "source": "Fallback event dataset",
+            "events": [],
+            "source": "Foursquare Places API",
             "live": False,
             "search_center": location,
+            "proximity_priority": prefer_proximity,
             "error": str(exc),
         }
 
@@ -809,11 +867,7 @@ def _build_message_summary(goal: str, history: list[dict]) -> str:
             restaurants = result.get("restaurants") or []
             if restaurants:
                 top_pick = restaurants[0]
-                restaurant = (
-                    f"{top_pick.get('name', 'Top dinner pick')} "
-                    f"({top_pick.get('estimated_cost', 'budget TBD')}, "
-                    f"{top_pick.get('walk_minutes', '?')} min walk)"
-                )
+                restaurant = f"{top_pick.get('name', 'Top dinner pick')} ({top_pick.get('estimated_cost', 'budget TBD')})"
         elif item.get("tool") == "conversation_starter" and not starter:
             starters = result.get("starters") or []
             if starters:
@@ -984,6 +1038,80 @@ def _write_local_agent_post(post: dict) -> None:
     posts = sorted(posts, key=lambda item: item.get("posted_at", ""))
     with AGENT_POSTS_FILE.open("w", encoding="utf-8") as file:
         json.dump({"posts": posts[-25:]}, file, indent=2)
+
+
+def list_local_agent_posts(source: str | None = None) -> list[dict]:
+    posts = _read_local_agent_posts()
+    if source:
+        posts = [post for post in posts if post.get("source") == source]
+    return sorted(posts, key=lambda item: item.get("posted_at", ""), reverse=True)
+
+
+def create_local_agent_post(profile: dict, *, source: str = "local") -> dict:
+    post = {
+        "participant_id": profile.get("participant_id", ""),
+        "name": profile.get("name", "Anonymous"),
+        "bcbs_plan": profile.get("bcbs_plan", "Unknown BCBS Plan"),
+        "job_title": profile.get("job_title", "Conference participant"),
+        "restaurant_preferences": profile.get("restaurant_preferences", ""),
+        "done_for_day_time": profile.get("done_for_day_time", ""),
+        "goal": profile.get("goal", "").strip() or "Meet people for dinner",
+        "posted_at": profile.get("posted_at") or datetime.now(timezone.utc).isoformat(),
+        "source": source,
+    }
+    _write_local_agent_post(post)
+    return post
+
+
+def clear_local_agent_posts(source: str | None = None) -> int:
+    posts = _read_local_agent_posts()
+    if not posts:
+        return 0
+
+    if source is None:
+        removed_count = len(posts)
+        remaining_posts: list[dict] = []
+    else:
+        remaining_posts = [post for post in posts if post.get("source") != source]
+        removed_count = len(posts) - len(remaining_posts)
+
+    AGENT_POSTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with AGENT_POSTS_FILE.open("w", encoding="utf-8") as file:
+        json.dump({"posts": remaining_posts[-25:]}, file, indent=2)
+    return removed_count
+
+
+def seed_sample_agent_posts() -> list[dict]:
+    sample_profiles = [
+        {
+            "participant_id": "sim-amelia-chen",
+            "name": "Amelia Chen",
+            "bcbs_plan": "Blue Cross and Blue Shield of Texas",
+            "job_title": "AI Product Lead",
+            "restaurant_preferences": "vegetarian-friendly and good cocktails",
+            "done_for_day_time": "6:00 PM",
+            "goal": "Meet smart people working on agent workflows and find a lively dinner in Dallas.",
+        },
+        {
+            "participant_id": "sim-marcus-johnson",
+            "name": "Marcus Johnson",
+            "bcbs_plan": "Florida Blue",
+            "job_title": "Operations Strategy Manager",
+            "restaurant_preferences": "steak or Tex-Mex, not too formal",
+            "done_for_day_time": "5:30 PM",
+            "goal": "Find a dinner group where I can compare ops automation ideas and keep things relaxed.",
+        },
+        {
+            "participant_id": "sim-elena-ramirez",
+            "name": "Elena Ramirez",
+            "bcbs_plan": "Blue Cross Blue Shield of Illinois",
+            "job_title": "Director of Member Experience",
+            "restaurant_preferences": "quiet enough to talk, seafood is great",
+            "done_for_day_time": "6:15 PM",
+            "goal": "Have a thoughtful dinner with people exploring AI for member experience and service design.",
+        },
+    ]
+    return [create_local_agent_post(profile, source=SIMULATED_PROFILE_SOURCE) for profile in sample_profiles]
 
 
 def _read_local_agent_messages() -> list[dict]:
@@ -1202,6 +1330,7 @@ def listen_for_agent_posts(
             parsed = _parse_agent_lab_post(message)
             if parsed:
                 posts.append(parsed)
+    posts.extend(_read_local_agent_posts())
 
     cutoff = _resolve_lookback_cutoff(oldest_lookback_timestamp, max_age_minutes)
     if cutoff is not None:
@@ -1224,7 +1353,7 @@ def listen_for_agent_posts(
     return {
         "posts": sorted_posts[:limit],
         "discord": discord_result,
-        "source": "discord",
+        "source": "discord+local",
         "max_age_minutes": max_age_minutes,
         "oldest_lookback_timestamp": cutoff.isoformat() if cutoff else None,
     }
@@ -1346,7 +1475,7 @@ def _derive_human_follow_up_questions(
         if restaurants:
             option_names = " or ".join(restaurant.get("name", "that option") for restaurant in restaurants[:2])
             questions.append(
-                f"You said you are not sure yet. Based on nearby options, should I optimize more for {option_names}, or keep looking for something different?"
+                f"You said you are not sure yet. Based on the current options, should I optimize more for {option_names}, or keep looking for something different?"
             )
         else:
             questions.append(
@@ -1534,7 +1663,7 @@ def _deterministic_collaboration(profile: dict, posts: list[dict]) -> dict:
         return {
             "summary": "No other agent posts are visible yet. Keep listening, then refresh once more participants publish.",
             "collaborators": [],
-            "next_steps": ["Post your intent, then ask nearby participants to do the same."],
+            "next_steps": ["Post your intent, then ask other participants to do the same."],
         }
 
     names = ", ".join(post.get("name", "another participant") for post in collaborators)
@@ -1567,26 +1696,20 @@ def _build_collaboration_venue_plan(profile: dict, collaborators: list[dict], co
     tool_context = {"hotel_location": (context or {}).get("hotel_location") or DEFAULT_HOTEL_LOCATION}
     restaurants = restaurant_finder(goal, [], tool_context)
     events = event_finder(goal, [], tool_context)
-    ranked_restaurants = sorted(
-        restaurants.get("restaurants", []),
-        key=lambda item: (
-            item.get("price_level", 9) > 2,
-            not item.get("good_for_groups", False),
-            item.get("walk_minutes", 999),
-            item.get("price_level", 9),
-        ),
-    )
+    proximity_priority = bool(restaurants.get("proximity_priority") or events.get("proximity_priority"))
+    ranked_restaurants = _rank_restaurants(restaurants.get("restaurants", []), prefer_proximity=proximity_priority)
     return {
         "restaurants": ranked_restaurants[:3],
         "restaurant_source": restaurants.get("source", "Unknown source"),
-        "restaurant_search_center": restaurants.get("search_center", tool_context["hotel_location"]),
+        "restaurant_search_center": restaurants.get("search_center", DEFAULT_CITY_SEARCH_LOCATION),
         "restaurant_live": restaurants.get("live", False),
         "restaurant_error": restaurants.get("error"),
         "events": events.get("events", [])[:3],
         "event_source": events.get("source", "Unknown source"),
-        "event_search_center": events.get("search_center", tool_context["hotel_location"]),
+        "event_search_center": events.get("search_center", DEFAULT_CITY_SEARCH_LOCATION),
         "event_live": events.get("live", False),
         "event_error": events.get("error"),
+        "proximity_priority": proximity_priority,
     }
 
 
@@ -1594,13 +1717,12 @@ def _restaurant_line(restaurant: dict) -> str:
     details = [
         restaurant.get("cuisine", "Restaurant"),
         restaurant.get("estimated_cost", "cost TBD"),
-        f"{restaurant.get('walk_minutes', '?')} min walk",
     ]
     return f"{restaurant.get('name', 'Dinner option')} ({', '.join(details)})"
 
 
 def _event_line(event: dict) -> str:
-    details = [event.get("time"), event.get("venue_type") or event.get("type"), event.get("address")]
+    details = [event.get("venue_type") or event.get("type"), event.get("address")]
     detail_text = ", ".join(str(item) for item in details if item)
     if detail_text:
         return f"{event.get('name', 'After-dinner option')} ({detail_text})"
@@ -1847,7 +1969,7 @@ def run_agent_negotiation_cycle(
 
     status = "monitoring"
     candidate_plan = None
-    summary = "Your agent is still discussing options with nearby agents."
+    summary = "Your agent is still discussing options with other agents."
 
     if pending_agent_follow_up:
         status = "needs_human_input"
@@ -1902,7 +2024,7 @@ def discord_message_sender(goal: str, history: list[dict], context: dict | None 
 TOOL_DEFINITIONS = {
     "restaurant_finder": {
         "label": "Restaurant Finder",
-        "description": "Find Dallas dinner options near the conference area.",
+        "description": "Find Dallas dinner options that fit the user's goal and preferences.",
         "fn": restaurant_finder,
     },
     "weather_tool": {
@@ -1917,7 +2039,7 @@ TOOL_DEFINITIONS = {
     },
     "event_finder": {
         "label": "Event Finder",
-        "description": "Suggest a nearby after-dinner stop or live event.",
+        "description": "Suggest an after-dinner stop or live event that fits the plan.",
         "fn": event_finder,
     },
     "discord_message_sender": {

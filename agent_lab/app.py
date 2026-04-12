@@ -36,7 +36,7 @@ def init_state() -> None:
         "restaurant_preferences": "",
         "done_for_day_time": "",
         "agent_intent": (
-            "Find a dinner group near the conference where I can meet useful peers, "
+            "Find a dinner group in Dallas where I can meet useful peers, "
             "compare AI agent ideas, and land on a restaurant that works for the group."
         ),
         "visible_agent_posts": [],
@@ -434,32 +434,43 @@ def render_publish_status() -> None:
 def render_collaboration_options(collaboration: dict) -> None:
     restaurants = collaboration.get("restaurants") or []
     events = collaboration.get("events") or []
+    restaurant_error = collaboration.get("restaurant_error")
+    event_error = collaboration.get("event_error")
+    proximity_priority = bool(collaboration.get("proximity_priority"))
 
     if restaurants:
         st.markdown("**Dinner options**")
         for restaurant in restaurants:
-            details = (
-                f"{restaurant.get('cuisine', 'Restaurant')} | "
-                f"{restaurant.get('estimated_cost', 'cost TBD')} | "
-                f"{restaurant.get('walk_minutes', '?')} min walk"
-            )
+            detail_parts = [
+                restaurant.get("cuisine", "Restaurant"),
+                restaurant.get("estimated_cost", "cost TBD"),
+            ]
+            if proximity_priority:
+                detail_parts.append(f"{restaurant.get('walk_minutes', '?')} min from hotel")
+            details = " | ".join(detail_parts)
             st.write(f"- **{restaurant.get('name', 'Dinner option')}** - {details}")
         st.caption(
-            f"Restaurant source: {collaboration.get('restaurant_source', 'Unknown source')} "
-            f"near {collaboration.get('restaurant_search_center', 'the conference area')}"
+            f"Restaurant source: {collaboration.get('restaurant_source', 'Unknown source')} | "
+            f"Search area: {collaboration.get('restaurant_search_center', 'Dallas, TX')}"
         )
+    elif restaurant_error:
+        st.error(f"Restaurant lookup failed: {restaurant_error}")
 
     if events:
         st.markdown("**After-dinner options**")
         for event in events:
-            details = [event.get("time"), event.get("venue_type") or event.get("type"), event.get("address")]
+            details = [event.get("venue_type") or event.get("type"), event.get("address")]
+            if proximity_priority:
+                details.insert(0, event.get("time"))
             detail_text = " | ".join(str(item) for item in details if item)
             suffix = f" - {detail_text}" if detail_text else ""
             st.write(f"- **{event.get('name', 'After-dinner option')}**{suffix}")
         st.caption(
-            f"Event source: {collaboration.get('event_source', 'Unknown source')} "
-            f"near {collaboration.get('event_search_center', 'the conference area')}"
+            f"Event source: {collaboration.get('event_source', 'Unknown source')} | "
+            f"Search area: {collaboration.get('event_search_center', 'Dallas, TX')}"
         )
+    elif event_error:
+        st.error(f"Event lookup failed: {event_error}")
 
     if collaboration.get("group_message"):
         with st.expander("Approved Message Preview"):

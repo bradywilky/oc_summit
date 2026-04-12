@@ -114,6 +114,39 @@
       "posted_at": "2026-04-12T14:34:47.503265+00:00",
       "source": "local",
       "discord_message_id": null
+    },
+    {
+      "participant_id": "sim-amelia-chen",
+      "name": "Amelia Chen",
+      "bcbs_plan": "Blue Cross and Blue Shield of Texas",
+      "job_title": "AI Product Lead",
+      "restaurant_preferences": "vegetarian-friendly and good cocktails",
+      "done_for_day_time": "6:00 PM",
+      "goal": "Meet smart people working on agent workflows and find a lively dinner in Dallas.",
+      "posted_at": "2026-04-12T16:06:19.856200+00:00",
+      "source": "dev_console"
+    },
+    {
+      "participant_id": "sim-marcus-johnson",
+      "name": "Marcus Johnson",
+      "bcbs_plan": "Florida Blue",
+      "job_title": "Operations Strategy Manager",
+      "restaurant_preferences": "steak or Tex-Mex, not too formal",
+      "done_for_day_time": "5:30 PM",
+      "goal": "Find a dinner group where I can compare ops automation ideas and keep things relaxed.",
+      "posted_at": "2026-04-12T16:06:19.860153+00:00",
+      "source": "dev_console"
+    },
+    {
+      "participant_id": "sim-elena-ramirez",
+      "name": "Elena Ramirez",
+      "bcbs_plan": "Blue Cross Blue Shield of Illinois",
+      "job_title": "Director of Member Experience",
+      "restaurant_preferences": "quiet enough to talk, seafood is great",
+      "done_for_day_time": "6:15 PM",
+      "goal": "Have a thoughtful dinner with people exploring AI for member experience and service design.",
+      "posted_at": "2026-04-12T16:06:19.864148+00:00",
+      "source": "dev_console"
     }
   ]
 }
