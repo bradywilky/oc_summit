@@ -21,6 +21,7 @@ st.set_page_config(
     page_title="Build Your Dallas Agent",
     page_icon=":robot_face:",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -317,7 +318,7 @@ def render_header() -> None:
 
 
 def render_profile_setup() -> dict:
-    st.subheader("1. Human Profile")
+    st.subheader("Human Profile")
     if profile_can_compact() and not st.session_state.profile_editor_open:
         profile = current_profile()
         left, right = st.columns([4, 1])
@@ -544,21 +545,6 @@ def render_agent_chat(profile: dict, api_key: str, model: str) -> None:
     st.rerun()
 
 
-def render_participant_slots(posts: list[dict], profile: dict) -> None:
-    st.subheader("Room View")
-    known_posts = [profile] + posts
-    slots = st.columns(5)
-    for index in range(10):
-        post = known_posts[index] if index < len(known_posts) else None
-        with slots[index % 5]:
-            if post:
-                st.metric(f"Agent {index + 1}", post.get("name", "Anonymous"))
-                st.caption(post.get("bcbs_plan", "Unknown Plan"))
-            else:
-                st.metric(f"Agent {index + 1}", "Waiting")
-                st.caption("No post yet")
-
-
 def render_posts(posts: list[dict]) -> None:
     st.subheader("Other Agent Posts")
     if not posts:
@@ -668,15 +654,14 @@ def main() -> None:
     render_header()
     api_key, model = runtime_settings()
 
-    left, right = st.columns([1, 1], gap="large")
-    with left:
+    with st.sidebar:
+        st.header("Profile")
         profile = render_profile_setup()
         render_publish_status()
-    with right:
-        render_agent_console(profile, api_key, model)
+
+    render_agent_console(profile, api_key, model)
 
     render_agent_monitor(profile, api_key, model)
-    render_participant_slots(st.session_state.visible_agent_posts, current_profile())
     render_posts(st.session_state.visible_agent_posts)
 
 
