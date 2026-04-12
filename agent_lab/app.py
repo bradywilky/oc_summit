@@ -11,6 +11,7 @@ from tools import (
     post_agent_discussion_message,
     publish_agent_post,
     run_agent_negotiation_cycle,
+    run_agent_negotiation_cycle_stream,
 )
 
 
@@ -185,13 +186,31 @@ def reset_agent_chat() -> None:
     st.session_state.last_agent_summary_seen = ""
 
 
-def run_cycle(profile: dict, api_key: str, model: str) -> None:
-    result = run_agent_negotiation_cycle(
-        profile,
-        context={"openai_api_key": api_key or None, "openai_model": model or None},
-        state=st.session_state.negotiation_state,
-        oldest_lookback_timestamp=get_discord_oldest_lookback_timestamp(),
-    )
+def _render_status_banner(target) -> None:
+    status = st.session_state.agent_status
+    summary = st.session_state.agent_summary
+    with target.container():
+        if status == "proposal_ready":
+            st.success(summary)
+        elif status == "needs_human_input":
+            st.warning(summary)
+        elif status == "discord_error":
+            st.error(summary)
+        else:
+            st.info(summary)
+
+
+def _render_chat_history(target) -> None:
+    with target.container():
+        if not st.session_state.agent_chat_messages:
+            st.caption("Launch the agent and this space will turn into a live conversation with status updates and follow-up questions.")
+            return
+        for message in st.session_state.agent_chat_messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+
+
+def _apply_cycle_result(result: dict) -> None:
     st.session_state.last_cycle_result = result
     st.session_state.visible_agent_posts = result.get("visible_agent_posts", [])
     st.session_state.discussion_messages = result.get("discussion_messages", [])
@@ -211,9 +230,59 @@ def run_cycle(profile: dict, api_key: str, model: str) -> None:
     sync_agent_chat_state()
 
 
-def launch_agent(profile: dict, api_key: str, model: str) -> None:
+def run_cycle(
+    profile: dict,
+    api_key: str,
+    model: str,
+    *,
+    stream_updates: bool = False,
+    status_placeholder=None,
+    chat_placeholder=None,
+) -> None:
+    if not stream_updates:
+        result = run_agent_negotiation_cycle(
+            profile,
+            context={"openai_api_key": api_key or None, "openai_model": model or None},
+            state=st.session_state.negotiation_state,
+            oldest_lookback_timestamp=get_discord_oldest_lookback_timestamp(),
+        )
+        _apply_cycle_result(result)
+        return
+
+    final_result: dict | None = None
+    for event in run_agent_negotiation_cycle_stream(
+        profile,
+        context={"openai_api_key": api_key or None, "openai_model": model or None},
+        state=st.session_state.negotiation_state,
+        oldest_lookback_timestamp=get_discord_oldest_lookback_timestamp(),
+    ):
+        if event.get("type") == "status":
+            append_chat_message("assistant", event.get("message", ""))
+            if chat_placeholder is not None:
+                _render_chat_history(chat_placeholder)
+            if status_placeholder is not None:
+                with status_placeholder.container():
+                    st.info(event.get("message", ""))
+        elif event.get("type") == "done":
+            final_result = event.get("result")
+
+    if final_result is not None:
+        _apply_cycle_result(final_result)
+        if chat_placeholder is not None:
+            _render_chat_history(chat_placeholder)
+        if status_placeholder is not None:
+            _render_status_banner(status_placeholder)
+
+
+def launch_agent(profile: dict, api_key: str, model: str, *, status_placeholder=None, chat_placeholder=None) -> None:
     st.session_state.profile_editor_open = False
     reset_agent_chat()
+    append_chat_message("assistant", "Launching your agent now. First I am publishing your intent to the room.")
+    if chat_placeholder is not None:
+        _render_chat_history(chat_placeholder)
+    if status_placeholder is not None:
+        with status_placeholder.container():
+            st.info("Publishing your intent to the shared agent room.")
     st.session_state.last_publish_result = publish_agent_post(profile, profile.get("goal", st.session_state.agent_intent))
     publish_discord = st.session_state.last_publish_result.get("discord", {})
     if not publish_discord.get("sent"):
@@ -226,6 +295,10 @@ def launch_agent(profile: dict, api_key: str, model: str) -> None:
         st.session_state.negotiation_state = {}
         append_activity([f"Discord publish failed: {_discord_reason(publish_discord)}"])
         sync_agent_chat_state()
+        if chat_placeholder is not None:
+            _render_chat_history(chat_placeholder)
+        if status_placeholder is not None:
+            _render_status_banner(status_placeholder)
         return
     st.session_state.agent_monitoring_active = True
     st.session_state.agent_status = "monitoring"
@@ -235,11 +308,27 @@ def launch_agent(profile: dict, api_key: str, model: str) -> None:
     st.session_state.pending_agent_follow_up = None
     st.session_state.negotiation_state = {}
     append_activity(["Published this human's intent and started monitoring the agent channel."])
-    run_cycle(profile, api_key, model)
+    sync_agent_chat_state()
+    if chat_placeholder is not None:
+        _render_chat_history(chat_placeholder)
+    run_cycle(
+        profile,
+        api_key,
+        model,
+        stream_updates=True,
+        status_placeholder=status_placeholder,
+        chat_placeholder=chat_placeholder,
+    )
 
 
-def send_back_to_discussion(profile: dict, api_key: str, model: str) -> None:
+def send_back_to_discussion(profile: dict, api_key: str, model: str, *, status_placeholder=None, chat_placeholder=None) -> None:
     st.session_state.profile_editor_open = False
+    append_chat_message("assistant", "I am taking your latest guidance back to the other agents now.")
+    if chat_placeholder is not None:
+        _render_chat_history(chat_placeholder)
+    if status_placeholder is not None:
+        with status_placeholder.container():
+            st.info("Republishing your updated preferences to the room.")
     st.session_state.last_publish_result = publish_agent_post(profile, profile.get("goal", st.session_state.agent_intent))
     publish_discord = st.session_state.last_publish_result.get("discord", {})
     if not publish_discord.get("sent"):
@@ -251,6 +340,10 @@ def send_back_to_discussion(profile: dict, api_key: str, model: str) -> None:
         st.session_state.negotiation_state = {}
         append_activity([f"Discord republish failed: {_discord_reason(publish_discord)}"])
         sync_agent_chat_state()
+        if chat_placeholder is not None:
+            _render_chat_history(chat_placeholder)
+        if status_placeholder is not None:
+            _render_status_banner(status_placeholder)
         return
     st.session_state.agent_monitoring_active = True
     st.session_state.agent_status = "monitoring"
@@ -259,7 +352,17 @@ def send_back_to_discussion(profile: dict, api_key: str, model: str) -> None:
     st.session_state.pending_agent_follow_up = None
     st.session_state.negotiation_state = {"force_new_round": True}
     append_activity(["Republished your latest profile and sent the agent back to negotiate."])
-    run_cycle(profile, api_key, model)
+    sync_agent_chat_state()
+    if chat_placeholder is not None:
+        _render_chat_history(chat_placeholder)
+    run_cycle(
+        profile,
+        api_key,
+        model,
+        stream_updates=True,
+        status_placeholder=status_placeholder,
+        chat_placeholder=chat_placeholder,
+    )
 
 
 def accept_plan(profile: dict) -> None:
@@ -494,47 +597,11 @@ def render_discussion_messages(messages: list[dict]) -> None:
                 st.write(f"- {question}")
 
 
-def render_agent_chat(profile: dict, api_key: str, model: str) -> None:
+def render_agent_chat(profile: dict, api_key: str, model: str, *, status_placeholder=None, chat_placeholder=None) -> None:
     st.markdown("**Chat with your Dallas evening planner**")
     sync_agent_chat_state()
-
-    if not st.session_state.agent_chat_messages:
-        st.caption("Launch the agent and this space will turn into a live conversation with status updates and follow-up questions.")
-    else:
-        for message in st.session_state.agent_chat_messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-
-    prompt_disabled = not st.session_state.agent_monitoring_active and st.session_state.agent_status not in {
-        "needs_human_input",
-        "proposal_ready",
-    }
-    user_reply = st.chat_input(
-        "Reply with preferences, constraints, or ask the planner to adjust the plan",
-        disabled=prompt_disabled,
-    )
-    if not user_reply:
-        return
-
-    append_chat_message("user", user_reply)
-    st.session_state.agent_chat_notes.append(user_reply.strip())
-    st.session_state.agent_chat_notes = st.session_state.agent_chat_notes[-12:]
-    append_activity(["Captured new guidance from the human in chat."])
-    append_chat_message("assistant", "Thanks. I’m folding that into the plan and sending your agent back into the discussion.")
-    send_back_to_discussion(current_profile(), api_key, model)
-    st.rerun()
-
-
-def render_agent_chat(profile: dict, api_key: str, model: str) -> None:
-    st.markdown("**Chat with your Dallas evening planner**")
-    sync_agent_chat_state()
-
-    if not st.session_state.agent_chat_messages:
-        st.caption("Launch the agent and this space will turn into a live conversation with status updates and follow-up questions.")
-    else:
-        for message in st.session_state.agent_chat_messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
+    target = chat_placeholder or st.empty()
+    _render_chat_history(target)
 
     prompt_disabled = not st.session_state.agent_monitoring_active and st.session_state.agent_status not in {
         "needs_human_input",
@@ -552,7 +619,14 @@ def render_agent_chat(profile: dict, api_key: str, model: str) -> None:
     st.session_state.agent_chat_notes = st.session_state.agent_chat_notes[-12:]
     append_activity(["Captured new guidance from the human in chat."])
     append_chat_message("assistant", "Thanks, that helps. I am folding that into the plan now and going back to the other agents.")
-    send_back_to_discussion(current_profile(), api_key, model)
+    _render_chat_history(target)
+    send_back_to_discussion(
+        current_profile(),
+        api_key,
+        model,
+        status_placeholder=status_placeholder,
+        chat_placeholder=target,
+    )
     st.rerun()
 
 
@@ -579,29 +653,34 @@ def render_agent_console(profile: dict, api_key: str, model: str) -> None:
         "The agent watches recent shared chat activity and "
         f"refreshes every {AGENT_LOOP_INTERVAL_SECONDS} seconds while monitoring is active."
     )
+    status_placeholder = st.empty()
+    chat_placeholder = st.empty()
 
     can_launch = bool(st.session_state.participant_name.strip() and st.session_state.agent_intent.strip())
     left, right = st.columns(2)
     with left:
         if st.button("Launch Agent", type="primary", use_container_width=True, disabled=not can_launch):
-            launch_agent(profile, api_key, model)
+            launch_agent(
+                profile,
+                api_key,
+                model,
+                status_placeholder=status_placeholder,
+                chat_placeholder=chat_placeholder,
+            )
     with right:
         if st.button("Pause Monitoring", use_container_width=True, disabled=not st.session_state.agent_monitoring_active):
             st.session_state.agent_monitoring_active = False
             st.session_state.agent_status = "paused"
             st.session_state.agent_summary = "Monitoring is paused until you relaunch the agent."
 
-    status = st.session_state.agent_status
-    if status == "proposal_ready":
-        st.success(st.session_state.agent_summary)
-    elif status == "needs_human_input":
-        st.warning(st.session_state.agent_summary)
-    elif status == "discord_error":
-        st.error(st.session_state.agent_summary)
-    else:
-        st.info(st.session_state.agent_summary)
-
-    render_agent_chat(profile, api_key, model)
+    _render_status_banner(status_placeholder)
+    render_agent_chat(
+        profile,
+        api_key,
+        model,
+        status_placeholder=status_placeholder,
+        chat_placeholder=chat_placeholder,
+    )
 
     pending_agent_follow_up = st.session_state.pending_agent_follow_up
     if pending_agent_follow_up:
@@ -632,7 +711,13 @@ def render_agent_console(profile: dict, api_key: str, model: str) -> None:
                 accept_plan(profile)
         with approve_right:
             if st.button("Send Agent Back To Discussion", use_container_width=True):
-                send_back_to_discussion(profile, api_key, model)
+                send_back_to_discussion(
+                    profile,
+                    api_key,
+                    model,
+                    status_placeholder=status_placeholder,
+                    chat_placeholder=chat_placeholder,
+                )
 
     if st.session_state.last_plan_result:
         plan_result = st.session_state.last_plan_result

@@ -71,3 +71,36 @@ streamlit run dev_console.py
 - `tools.py` - demo tools and local data loading
 - `prompts.py` - presentation framing and response templates
 - `data/` - curated demo datasets
+
+## Streaming agent updates
+
+`agent.py` now exposes both:
+
+- `run_agent(...)` for the original one-shot behavior
+- `run_agent_stream(...)` for incremental UI updates
+
+If you want Streamlit to render intermediate status messages as they happen, iterate the stream in `app.py` and update the UI on each event instead of waiting for `run_agent(...)` to return.
+
+```python
+from agent import run_agent_stream
+
+status_box = st.empty()
+chat_box = st.container()
+
+for event in run_agent_stream(goal, enabled_tools, api_key=api_key, model=model):
+    if event["type"] == "status":
+        status_box.info(event["message"])
+    elif event["type"] == "step_started":
+        with chat_box:
+            st.chat_message("assistant").write(
+                f"Running {event['tool_label']}..."
+            )
+    elif event["type"] == "step_completed":
+        with chat_box:
+            st.chat_message("assistant").write(
+                f"Finished {event['tool_label']}."
+            )
+    elif event["type"] == "final":
+        with chat_box:
+            st.chat_message("assistant").write(event["final"])
+```

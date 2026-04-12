@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Iterator
 
 from openai import OpenAI
 
@@ -115,14 +115,13 @@ def _llm_format_final_answer(
     return response.output_text.strip()
 
 
-def run_agent(
+def _prepare_agent_run(
     goal: str,
-    enabled_tools: list[str],
     api_key: str | None = None,
     model: str | None = None,
     context: dict | None = None,
     conversation_history: list[dict] | None = None,
-) -> dict:
+) -> tuple[list[dict], dict, str]:
     history: list[dict] = []
     tool_context = dict(context or {})
     if api_key or os.getenv("OPENAI_API_KEY"):
@@ -137,16 +136,48 @@ def run_agent(
             f"Conversation so far:\n{conversation_context}\n\n"
             f"Latest user request:\n{goal.strip()}"
         )
+    return history, tool_context, effective_goal
+
+
+def run_agent_stream(
+    goal: str,
+    enabled_tools: list[str],
+    api_key: str | None = None,
+    model: str | None = None,
+    context: dict | None = None,
+    conversation_history: list[dict] | None = None,
+) -> Iterator[dict]:
+    history, tool_context, effective_goal = _prepare_agent_run(
+        goal,
+        api_key=api_key,
+        model=model,
+        context=context,
+        conversation_history=conversation_history,
+    )
+
+    yield {
+        "type": "status",
+        "phase": "planning",
+        "message": "Building the tool plan.",
+    }
 
     try:
         plan = _llm_build_plan(effective_goal, enabled_tools, api_key=api_key, model=model)
     except Exception as exc:
-        return {
+        result = {
             "history": [],
             "final": "The agent could not build a plan because LLM planning failed.",
             "mode_used": "LLM Mode",
             "warning": f"LLM planning failed. Details: {exc}",
         }
+        yield {
+            "type": "error",
+            "phase": "planning",
+            "message": result["final"],
+            "warning": result["warning"],
+        }
+        yield {"type": "done", **result}
+        return
 
     should_send_discord = (
         "discord_message_sender" in enabled_tools
@@ -156,19 +187,46 @@ def run_agent(
         )
     )
     planning_steps = [decision for decision in plan if decision.tool != "discord_message_sender"]
-
-    for step_number, decision in enumerate(planning_steps, start=1):
-        result = _run_tool(decision.tool, effective_goal, history, tool_context)
-        history.append(
+    yield {
+        "type": "plan",
+        "steps": [
             {
-                "step": step_number,
                 "tool": decision.tool,
                 "tool_label": TOOL_DEFINITIONS[decision.tool]["label"],
                 "reason": decision.reason,
-                "result": result,
             }
-        )
+            for decision in planning_steps
+        ],
+        "will_send_discord": should_send_discord,
+    }
 
+    for step_number, decision in enumerate(planning_steps, start=1):
+        yield {
+            "type": "step_started",
+            "step": step_number,
+            "tool": decision.tool,
+            "tool_label": TOOL_DEFINITIONS[decision.tool]["label"],
+            "reason": decision.reason,
+        }
+        result = _run_tool(decision.tool, effective_goal, history, tool_context)
+        step_record = {
+            "step": step_number,
+            "tool": decision.tool,
+            "tool_label": TOOL_DEFINITIONS[decision.tool]["label"],
+            "reason": decision.reason,
+            "result": result,
+        }
+        history.append(step_record)
+        yield {
+            "type": "step_completed",
+            **step_record,
+        }
+
+    yield {
+        "type": "status",
+        "phase": "finalizing",
+        "message": "Writing the final recommendation.",
+    }
     try:
         final = _llm_format_final_answer(
             goal,
@@ -181,19 +239,69 @@ def run_agent(
     except Exception as exc:
         final = "The agent completed its tool runs, but LLM final synthesis failed."
         warning = f"LLM final synthesis failed. Details: {exc}"
+    yield {
+        "type": "final",
+        "final": final,
+        "warning": warning,
+    }
 
     if should_send_discord:
         delivery_context = dict(tool_context)
         delivery_context["final_message"] = final
+        yield {
+            "type": "step_started",
+            "step": len(history) + 1,
+            "tool": "discord_message_sender",
+            "tool_label": TOOL_DEFINITIONS["discord_message_sender"]["label"],
+            "reason": "Send the final plan as a Discord message because the goal requested message delivery.",
+        }
         result = _run_tool("discord_message_sender", effective_goal, history, delivery_context)
-        history.append(
-            {
-                "step": len(history) + 1,
-                "tool": "discord_message_sender",
-                "tool_label": TOOL_DEFINITIONS["discord_message_sender"]["label"],
-                "reason": "Send the final plan as a Discord message because the goal requested message delivery.",
-                "result": result,
-            }
-        )
+        step_record = {
+            "step": len(history) + 1,
+            "tool": "discord_message_sender",
+            "tool_label": TOOL_DEFINITIONS["discord_message_sender"]["label"],
+            "reason": "Send the final plan as a Discord message because the goal requested message delivery.",
+            "result": result,
+        }
+        history.append(step_record)
+        yield {
+            "type": "step_completed",
+            **step_record,
+        }
 
-    return {"history": history, "final": final, "mode_used": "LLM Mode", "warning": warning}
+    yield {"type": "done", "history": history, "final": final, "mode_used": "LLM Mode", "warning": warning}
+
+
+def run_agent(
+    goal: str,
+    enabled_tools: list[str],
+    api_key: str | None = None,
+    model: str | None = None,
+    context: dict | None = None,
+    conversation_history: list[dict] | None = None,
+) -> dict:
+    final_result: dict | None = None
+    for event in run_agent_stream(
+        goal,
+        enabled_tools,
+        api_key=api_key,
+        model=model,
+        context=context,
+        conversation_history=conversation_history,
+    ):
+        if event.get("type") == "done":
+            final_result = {
+                "history": event.get("history", []),
+                "final": event.get("final", ""),
+                "mode_used": event.get("mode_used", "LLM Mode"),
+                "warning": event.get("warning"),
+            }
+
+    if final_result is None:
+        return {
+            "history": [],
+            "final": "The agent stopped before producing a final result.",
+            "mode_used": "LLM Mode",
+            "warning": "The streaming run finished without a terminal event.",
+        }
+    return final_result

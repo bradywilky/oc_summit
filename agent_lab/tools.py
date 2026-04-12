@@ -6,6 +6,7 @@ import re
 import ssl
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Iterator
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote_plus, urlencode
 from urllib.request import Request, urlopen
@@ -1838,22 +1839,27 @@ def _message_is_relevant_to_group(message: dict, current_participant_id: str, co
     return current_participant_id in target_ids or bool(target_ids & collaborator_ids)
 
 
-def run_agent_negotiation_cycle(
+def run_agent_negotiation_cycle_stream(
     profile: dict,
     context: dict | None = None,
     state: dict | None = None,
     oldest_lookback_timestamp: str | datetime | None = None,
-) -> dict:
+) -> Iterator[dict]:
     previous_state = dict(state or {})
     diplomacy = profile.get("diplomacy_preferences") or {}
     follow_up_control = diplomacy.get("follow_up_control", FOLLOW_UP_CONTROL_BALANCED)
+    yield {
+        "type": "status",
+        "phase": "listening_posts",
+        "message": "Checking the shared room for other active agents.",
+    }
     posts_result = listen_for_agent_posts(
         profile.get("participant_id"),
         oldest_lookback_timestamp=oldest_lookback_timestamp,
     )
     if not posts_result.get("discord", {}).get("fetched"):
         reason = posts_result.get("discord", {}).get("reason") or "Discord message fetch failed."
-        return {
+        result = {
             "status": "discord_error",
             "summary": f"Discord is unavailable, so agent coordination cannot continue. Reason: {reason}",
             "visible_agent_posts": [],
@@ -1866,9 +1872,16 @@ def run_agent_negotiation_cycle(
             "listen_result": posts_result,
             "message_result": None,
         }
+        yield {"type": "done", "result": result}
+        return
     visible_posts = posts_result.get("posts", [])
     ranked_posts = sorted(visible_posts, key=lambda post: _overlap_score(profile, post), reverse=True)
     collaborators = ranked_posts[:3]
+    yield {
+        "type": "status",
+        "phase": "listening_messages",
+        "message": f"Found {len(visible_posts)} active agent posts. Reading recent agent-to-agent messages.",
+    }
 
     message_result = listen_for_agent_messages(
         profile.get("participant_id"),
@@ -1876,7 +1889,7 @@ def run_agent_negotiation_cycle(
     )
     if not message_result.get("discord", {}).get("fetched"):
         reason = message_result.get("discord", {}).get("reason") or "Discord discussion fetch failed."
-        return {
+        result = {
             "status": "discord_error",
             "summary": f"Discord is unavailable, so agent coordination cannot continue. Reason: {reason}",
             "visible_agent_posts": visible_posts,
@@ -1889,10 +1902,12 @@ def run_agent_negotiation_cycle(
             "listen_result": posts_result,
             "message_result": message_result,
         }
+        yield {"type": "done", "result": result}
+        return
     all_messages = message_result.get("messages", [])
 
     if not collaborators:
-        return {
+        result = {
             "status": "waiting_for_agents",
             "summary": "Your agent is monitoring the channel and waiting for another participant agent to appear.",
             "visible_agent_posts": visible_posts,
@@ -1905,7 +1920,20 @@ def run_agent_negotiation_cycle(
             "listen_result": posts_result,
             "message_result": message_result,
         }
+        yield {
+            "type": "status",
+            "phase": "waiting",
+            "message": "No compatible collaborator is visible yet, so I am staying in listening mode.",
+        }
+        yield {"type": "done", "result": result}
+        return
 
+    collaborator_names = _names_from_posts(collaborators)
+    yield {
+        "type": "status",
+        "phase": "synthesizing",
+        "message": f"Comparing fit with {', '.join(collaborator_names)} and drafting a group plan.",
+    }
     collaboration = synthesize_agent_collaboration(profile, collaborators, context=context)
     group_signature = _group_signature(profile, collaborators)
     collaborator_ids = {_participant_key(post) for post in collaborators if _participant_key(post)}
@@ -1945,14 +1973,24 @@ def run_agent_negotiation_cycle(
                 "summary": "Your current diplomacy setting requires your approval before I send another follow-up to the other agents.",
             }
             activity.append("Prepared an agent follow-up and paused until the human approves sending it.")
+            yield {
+                "type": "status",
+                "phase": "awaiting_approval",
+                "message": "I drafted a follow-up for the other agents and I am waiting for your approval before sending it.",
+            }
         else:
+            yield {
+                "type": "status",
+                "phase": "posting_follow_up",
+                "message": "Sending a follow-up question so the other agents can confirm constraints and preferences.",
+            }
             discussion_post = post_agent_discussion_message(profile, collaboration, collaborators, questions=outbound_questions)
             if discussion_post.get("sent") and discussion_post.get("local_message"):
                 activity.append("Posted a discussion update so the other agents can compare constraints and preferences.")
                 relevant_messages = [discussion_post["local_message"], *relevant_messages]
             else:
                 reason = discussion_post.get("discord", {}).get("reason") or "Discord send failed."
-                return {
+                result = {
                     "status": "discord_error",
                     "summary": f"Discord is unavailable, so the agent could not continue the negotiation. Reason: {reason}",
                     "visible_agent_posts": visible_posts,
@@ -1966,6 +2004,8 @@ def run_agent_negotiation_cycle(
                     "listen_result": posts_result,
                     "message_result": message_result,
                 }
+                yield {"type": "done", "result": result}
+                return
 
     status = "monitoring"
     candidate_plan = None
@@ -1984,7 +2024,7 @@ def run_agent_negotiation_cycle(
     else:
         activity.append("Waiting for at least one other agent to respond before surfacing a plan.")
 
-    return {
+    result = {
         "status": status,
         "summary": summary,
         "visible_agent_posts": visible_posts,
@@ -2003,6 +2043,39 @@ def run_agent_negotiation_cycle(
         "listen_result": posts_result,
         "message_result": message_result,
     }
+    yield {"type": "done", "result": result}
+
+
+def run_agent_negotiation_cycle(
+    profile: dict,
+    context: dict | None = None,
+    state: dict | None = None,
+    oldest_lookback_timestamp: str | datetime | None = None,
+) -> dict:
+    final_result: dict | None = None
+    for event in run_agent_negotiation_cycle_stream(
+        profile,
+        context=context,
+        state=state,
+        oldest_lookback_timestamp=oldest_lookback_timestamp,
+    ):
+        if event.get("type") == "done":
+            final_result = event.get("result")
+    if final_result is None:
+        return {
+            "status": "discord_error",
+            "summary": "The agent stopped before it could finish the negotiation cycle.",
+            "visible_agent_posts": [],
+            "discussion_messages": [],
+            "collaboration": None,
+            "candidate_plan": None,
+            "follow_up_questions": [],
+            "activity": ["Negotiation cycle ended without a final result."],
+            "state": {"status": "discord_error", "force_new_round": False},
+            "listen_result": None,
+            "message_result": None,
+        }
+    return final_result
 
 
 def post_collaboration_reply(profile: dict, collaboration: dict) -> dict:
