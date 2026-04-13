@@ -1,0 +1,33 @@
+[
+  {
+    "id": "fvii-bpm-apim",
+    "question": "Which BPM handoff and APIM access rules apply to this FVII exception?",
+    "knowledgeBases": ["fvii", "bpm", "apim"],
+    "individualAnswers": {
+      "fvii": "FVII says this exception should be logged against the request, include the required Form VII fields, and show the approval reason before the workflow moves forward.",
+      "bpm": "BPM says the process owner should confirm the handoff point, document the current step, and make sure the exception does not bypass the mapped approval lane.",
+      "apim": "APIM says access should use the approved gateway path with the correct subscription, endpoint, and policy before the exception can call the service."
+    },
+    "summaryAnswer": "For this FVII exception, capture the exception and required fields in the FVII workflow, have the BPM owner confirm the handoff and approval lane, and only proceed through the APIM gateway when the subscription, endpoint, and access policy are correct."
+  },
+  {
+    "id": "dpc-controls-records",
+    "question": "What DPC controls and BB records should be checked before closing this support note?",
+    "knowledgeBases": ["dpc", "bb"],
+    "individualAnswers": {
+      "dpc": "DPC says the relevant operational control should be checked, evidence should be attached, and any gap should be recorded before closure.",
+      "bb": "BB says the support record should be reviewed for the latest note, owner, and closure status before a final response is sent."
+    },
+    "summaryAnswer": "Before closing the support note, verify the DPC control and attach evidence, then check the BB record for the latest note, owner, and closure status so the final answer is grounded in both control and record data."
+  },
+  {
+    "id": "api-owner-handoff",
+    "question": "Who owns the API gateway handoff, and what process map should be updated?",
+    "knowledgeBases": ["bpm", "apim"],
+    "individualAnswers": {
+      "bpm": "BPM says the process owner is responsible for the gateway handoff and should update the process map when the owner or handoff step changes.",
+      "apim": "APIM says the gateway owner should confirm the endpoint, subscription, and policy details before the handoff is considered complete."
+    },
+    "summaryAnswer": "The BPM process owner owns the handoff in the process map, while APIM confirms the gateway endpoint, subscription, and policy. Update the process map when the owner or handoff step changes."
+  }
+]

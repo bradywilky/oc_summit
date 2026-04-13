@@ -1,0 +1,152 @@
+{
+  "posts": [
+    {
+      "participant_id": "2c5c91e9-14e8-4c74-841f-789dd030632b",
+      "name": "Brady Wilkinson",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-10T16:53:55.283284+00:00",
+      "source": "local",
+      "discord_message_id": "1492205984800837855"
+    },
+    {
+      "participant_id": "4ba756f8-1208-44d8-af2a-ba2edd939e72",
+      "name": "Barack Obama",
+      "bcbs_plan": "CareFirst",
+      "job_title": "Junior Data Analyst",
+      "restaurant_preferences": "tex mex",
+      "goal": "maybe some sports?",
+      "posted_at": "2026-04-10T17:38:46.435525+00:00",
+      "source": "local",
+      "discord_message_id": "1492217273094766665"
+    },
+    {
+      "participant_id": "d1512fc0-8743-41cb-8060-7602323010c8",
+      "name": "Brady Wilkinson",
+      "bcbs_plan": "CareFirst",
+      "job_title": "sr data scientist",
+      "restaurant_preferences": "tex mex",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-10T18:23:00.654497+00:00",
+      "source": "local",
+      "discord_message_id": "1492228404492239048"
+    },
+    {
+      "participant_id": "bf369dd3-d1ae-46d8-baf1-29324937452b",
+      "name": "Brady Wilkinson",
+      "bcbs_plan": "CareFirst",
+      "job_title": "data scientist",
+      "restaurant_preferences": "tex mex or anything close to water",
+      "goal": "go to dinner and then walk by the water if possible",
+      "posted_at": "2026-04-11T16:12:27.624070+00:00",
+      "source": "local",
+      "discord_message_id": "1492557933962203363"
+    },
+    {
+      "participant_id": "bf31197d-b4e7-4d88-8040-a9e0cf4273fc",
+      "name": "Sujata Patel",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "not picky as long as there are veg options!",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-11T16:24:48.271707+00:00",
+      "source": "local",
+      "discord_message_id": "1492560976703389727"
+    },
+    {
+      "participant_id": "65c7fe14-06f2-4de6-991d-9f2406e1c99f",
+      "name": "Jeff Probst",
+      "bcbs_plan": "Florida Blue",
+      "job_title": "HR",
+      "restaurant_preferences": "steak",
+      "done_for_day_time": "5",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-12T14:03:34.680918+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "8ac644f1-5df0-43d4-80a6-3defe7e00e0e",
+      "name": "Jonny Fairplay",
+      "bcbs_plan": "BCBS Alabama",
+      "job_title": "AI Strategist",
+      "restaurant_preferences": "anything with drinks",
+      "done_for_day_time": "6 or 7",
+      "goal": "good people!",
+      "posted_at": "2026-04-12T14:05:33.997850+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "10bd3f1b-448f-4ec4-9d9b-d02adc4861b3",
+      "name": "Jonny Fairplay",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "no idea",
+      "done_for_day_time": "",
+      "goal": "drinks\n\nAdditional guidance from the human in chat:\n- like 6pm",
+      "posted_at": "2026-04-12T14:17:25.179072+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "9b970f8b-e22f-4be3-ab02-af8dd696e24d",
+      "name": "Jonny Fairplay",
+      "bcbs_plan": "Unknown BCBS Plan",
+      "job_title": "Conference participant",
+      "restaurant_preferences": "not sure",
+      "done_for_day_time": "",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-12T14:25:11.765268+00:00",
+      "source": "local",
+      "discord_message_id": "1492893257980706856"
+    },
+    {
+      "participant_id": "946017dc-7cb9-460a-813b-551d4f793e47",
+      "name": "Sujata Patel",
+      "bcbs_plan": "FEPOC",
+      "job_title": "Product owner",
+      "restaurant_preferences": "vegetarian friendly",
+      "done_for_day_time": "5 PM",
+      "goal": "Find a dinner group near the conference where I can meet useful peers, compare AI agent ideas, and land on a restaurant that works for the group.",
+      "posted_at": "2026-04-12T14:34:47.503265+00:00",
+      "source": "local",
+      "discord_message_id": null
+    },
+    {
+      "participant_id": "sim-amelia-chen",
+      "name": "Amelia Chen",
+      "bcbs_plan": "Blue Cross and Blue Shield of Texas",
+      "job_title": "AI Product Lead",
+      "restaurant_preferences": "vegetarian-friendly and good cocktails",
+      "done_for_day_time": "6:00 PM",
+      "goal": "Meet smart people working on agent workflows and find a lively dinner in Dallas.",
+      "posted_at": "2026-04-12T16:14:37.185469+00:00",
+      "source": "dev_console"
+    },
+    {
+      "participant_id": "sim-marcus-johnson",
+      "name": "Marcus Johnson",
+      "bcbs_plan": "Florida Blue",
+      "job_title": "Operations Strategy Manager",
+      "restaurant_preferences": "steak or Tex-Mex, not too formal",
+      "done_for_day_time": "5:30 PM",
+      "goal": "Find a dinner group where I can compare ops automation ideas and keep things relaxed.",
+      "posted_at": "2026-04-12T16:14:37.187270+00:00",
+      "source": "dev_console"
+    },
+    {
+      "participant_id": "sim-elena-ramirez",
+      "name": "Elena Ramirez",
+      "bcbs_plan": "Blue Cross Blue Shield of Illinois",
+      "job_title": "Director of Member Experience",
+      "restaurant_preferences": "quiet enough to talk, seafood is great",
+      "done_for_day_time": "6:15 PM",
+      "goal": "Have a thoughtful dinner with people exploring AI for member experience and service design.",
+      "posted_at": "2026-04-12T16:14:37.188879+00:00",
+      "source": "dev_console"
+    }
+  ]
+}

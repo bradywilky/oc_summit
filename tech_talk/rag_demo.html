@@ -220,6 +220,7 @@
     const chatWindow = document.getElementById("chatWindow");
     const questionInput = document.getElementById("questionInput");
     const proofText = document.getElementById("proofText");
+    const sendBtn = document.getElementById("sendBtn");
 
     function getKey() {
       const llm = llmCheckbox.checked ? 1 : 0;
@@ -228,7 +229,9 @@
       return `${llm}${retriever}${kb}`;
     }
 
-    const responses = {
+    let responses = {};
+
+    const fallbackResponses = {
       "000": {
         answer: "No meaningful answer can be produced because there is no LLM, no retriever, and no knowledge base.",
         proof: "Without core components, there is no chatbot behavior at all."
@@ -263,6 +266,10 @@
       }
     };
 
+    function getResponseForCurrentConfig() {
+      return responses[getKey()] || fallbackResponses[getKey()];
+    }
+
     function updateDiagram() {
       const llm = llmCheckbox.checked;
       const retriever = retrieverCheckbox.checked;
@@ -278,7 +285,7 @@
       document.getElementById("arrow-kb-llm").classList.toggle("active", kb && retriever && llm);
       document.getElementById("arrow-llm-answer").classList.toggle("active", llm);
 
-      proofText.textContent = responses[getKey()].proof;
+      proofText.textContent = getResponseForCurrentConfig().proof;
     }
 
     function appendMessage(text, className) {
@@ -291,7 +298,7 @@
 
     function handleSend() {
       const userQuestion = questionInput.value.trim() || "Example question";
-      const config = responses[getKey()];
+      const config = getResponseForCurrentConfig();
 
       appendMessage(userQuestion, "user");
       appendMessage(config.answer, "bot");
@@ -308,9 +315,27 @@
     llmCheckbox.addEventListener("change", updateDiagram);
     retrieverCheckbox.addEventListener("change", updateDiagram);
     kbCheckbox.addEventListener("change", updateDiagram);
-    document.getElementById("sendBtn").addEventListener("click", handleSend);
+    sendBtn.addEventListener("click", handleSend);
 
-    updateDiagram();
+    async function loadResponses() {
+      try {
+        const response = await fetch("rag_responses.json");
+
+        if (!response.ok) {
+          throw new Error("RAG response file was not available.");
+        }
+
+        responses = await response.json();
+      } catch (error) {
+        responses = fallbackResponses;
+      }
+
+      updateDiagram();
+      sendBtn.disabled = false;
+    }
+
+    sendBtn.disabled = true;
+    loadResponses();
   </script>
 </body>
 </html>

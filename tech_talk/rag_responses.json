@@ -1,0 +1,34 @@
+{
+  "000": {
+    "answer": "No meaningful answer can be produced because there is no LLM, no retriever, and no knowledge base.",
+    "proof": "Without core components, there is no chatbot behavior at all."
+  },
+  "001": {
+    "answer": "A knowledge base by itself just stores information. It does not answer questions on its own.",
+    "proof": "Documents sitting in storage are not the same as a chatbot understanding or answering from them."
+  },
+  "010": {
+    "answer": "A retriever without a knowledge base has nothing to search, and without an LLM it cannot explain results.",
+    "proof": "Search logic alone is not enough. It needs content to search and usually an LLM to synthesize an answer."
+  },
+  "011": {
+    "answer": "The system can locate relevant internal passages, but without an LLM it cannot turn them into a natural language answer.",
+    "proof": "Retrieval and generation are different jobs."
+  },
+  "100": {
+    "answer": "I can generate a fluent response based on general language ability, but I do not have access to your proprietary internal manual.",
+    "proof": "The LLM is not automatically trained on your internal documents."
+  },
+  "101": {
+    "answer": "Even if a knowledge base exists, the LLM still cannot use it unless something retrieves the relevant information and passes it in.",
+    "proof": "An LLM does not magically read a private document store just because the store exists."
+  },
+  "110": {
+    "answer": "The LLM and retriever are present, but without a knowledge base there is no proprietary source to ground the answer in.",
+    "proof": "A retriever needs a source of truth to search."
+  },
+  "111": {
+    "answer": "Using retrieved passages from the internal knowledge base, I can generate a grounded answer. This is a RAG system: the LLM writes the answer, but the retriever supplies the relevant proprietary content.",
+    "proof": "This shows the core idea of RAG: the LLM is not trained on the internal manual; it uses retrieved content at question time."
+  }
+}

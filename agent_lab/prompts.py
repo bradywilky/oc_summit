@@ -33,7 +33,7 @@ FINAL_PLAN_TEMPLATE = """
 
 **Dinner recommendation:** **{restaurant}**
 - Estimated cost: {budget}
-- Walking time from conference area: about {walking_time} minutes
+- Approximate travel time: about {walking_time} minutes
 
 **People to meet**
 {attendee_block}
