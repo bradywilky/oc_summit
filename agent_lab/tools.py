@@ -1410,6 +1410,37 @@ def listen_for_agent_messages(
     }
 
 
+def listen_for_discord_chat(
+    limit: int = 50,
+    max_age_minutes: int | None = DEFAULT_LISTEN_WINDOW_MINUTES,
+    oldest_lookback_timestamp: str | datetime | None = None,
+) -> dict:
+    discord_result = _fetch_discord_messages(limit)
+    messages = discord_result.get("messages", [])
+
+    cutoff = _resolve_lookback_cutoff(oldest_lookback_timestamp, max_age_minutes)
+    if cutoff is not None:
+        filtered_messages = []
+        for message in messages:
+            timestamp = _parse_timestamp(message.get("timestamp"))
+            if timestamp is not None and timestamp >= cutoff:
+                filtered_messages.append(message)
+        messages = filtered_messages
+
+    sorted_messages = sorted(
+        messages,
+        key=lambda item: item.get("timestamp") or "",
+        reverse=True,
+    )
+    return {
+        "messages": sorted_messages[:limit],
+        "discord": discord_result,
+        "source": "discord",
+        "max_age_minutes": max_age_minutes,
+        "oldest_lookback_timestamp": cutoff.isoformat() if cutoff else None,
+    }
+
+
 def _participant_key(post: dict) -> str:
     return str(post.get("participant_id") or post.get("discord_message_id") or post.get("name", "")).strip()
 
